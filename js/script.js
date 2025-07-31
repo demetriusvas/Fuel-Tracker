@@ -1,348 +1,212 @@
-// Simulação de dados
-        const mockRefuels = [
-            {
-                id: 1,
-                date: "2023-06-15",
-                mileage: 45200,
-                liters: 20.00,
-                totalValue: 250.00,
-                pricePerLiter: 12.50,
-                consumption: 12.5,
-                fuelType: "gasolina",
-                station: "Posto Central",
-                observations: ""
-            },
-            {
-                id: 2,
-                date: "2023-06-10",
-                mileage: 44900,
-                liters: 15.00,
-                totalValue: 180.00,
-                pricePerLiter: 12.00,
-                consumption: 13.3,
-                fuelType: "etanol",
-                station: "Auto Posto XYZ",
-                observations: ""
-            },
-            {
-                id: 3,
-                date: "2023-06-05",
-                mileage: 44500,
-                liters: 25.00,
-                totalValue: 320.00,
-                pricePerLiter: 12.80,
-                consumption: 11.8,
-                fuelType: "diesel",
-                station: "Shell Express",
-                observations: ""
-            }
-        ];
-        
-        // Estado da aplicação
-        let currentUser = null;
-        let refuels = [...mockRefuels];
-        
-        // Elementos DOM
-        const loginPage = document.getElementById('login-page');
-        const dashboardPage = document.getElementById('dashboard-page');
-        const loginForm = document.getElementById('login-form');
-        const loginLoading = document.getElementById('login-loading');
-        const logoutBtn = document.getElementById('logout-btn');
-        const userName = document.getElementById('user-name');
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toast-message');
-        
-        // Navegação entre páginas
-        document.querySelectorAll('[data-page]').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const page = this.getAttribute('data-page');
-                
-                // Atualizar navegação ativa
-                document.querySelectorAll('.nav-link').forEach(nav => {
-                    nav.classList.remove('active');
-                });
-                this.classList.add('active');
-                
-                // Mostrar página correspondente
-                document.querySelectorAll('.page-content').forEach(content => {
-                    content.classList.remove('active-page');
-                });
-                
-                document.getElementById(`${page}-content`).classList.add('active-page');
-                
-                // Se for a página de estatísticas, inicializar gráficos
-                if (page === 'statistics') {
-                    initCharts();
-                }
-            });
-        });
-        
-        // Função para mostrar toast
-        function showToast(message, type = 'success') {
-            toastMessage.textContent = message;
-            toast.className = `toast align-items-center text-white border-0 ${type === 'success' ? 'bg-success' : 'bg-danger'}`;
-            const bsToast = new bootstrap.Toast(toast);
-            bsToast.show();
-        }
-        
-        // Função para simular login
-        function simulateLogin(email, password) {
-            return new Promise((resolve, reject) => {
-                loginLoading.style.display = 'block';
-                
-                setTimeout(() => {
-                    loginLoading.style.display = 'none';
-                    if (email && password) {
-                        currentUser = {
-                            name: email.split('@')[0],
-                            email: email
-                        };
-                        resolve(currentUser);
-                    } else {
-                        reject('Credenciais inválidas');
-                    }
-                }, 1500);
-            });
-        }
-        
-        // Evento de login
-        loginForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            try {
-                const user = await simulateLogin(email, password);
-                userName.textContent = user.name;
-                loginPage.classList.add('d-none');
-                dashboardPage.classList.remove('d-none');
-                showToast('Login realizado com sucesso!');
-            } catch (error) {
-                showToast('Erro ao fazer login. Verifique suas credenciais.', 'error');
-            }
-        });
-        
-        // Login com Google (simulado)
-        document.getElementById('google-login').addEventListener('click', function() {
-            simulateLogin('usuario@gmail.com', '123456')
-                .then(user => {
-                    userName.textContent = user.name;
-                    loginPage.classList.add('d-none');
-                    dashboardPage.classList.remove('d-none');
-                    showToast('Login com Google realizado com sucesso!');
-                });
-        });
-        
-        // Logout
-        logoutBtn.addEventListener('click', function() {
-            currentUser = null;
-            dashboardPage.classList.add('d-none');
+document.addEventListener('DOMContentLoaded', () => {
+    // --- INÍCIO: Configuração do Firebase ---
+    // IMPORTANTE: Substitua com as credenciais do seu projeto Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyAGp0iUU8Ived_dAOdNFEg1amEX6tj-bzE",
+        authDomain: "fuel-tracker-app-bdbb5.firebaseapp.com",
+        projectId: "fuel-tracker-app-bdbb5",
+        storageBucket: "fuel-tracker-app-bdbb5.firebasestorage.app",
+        messagingSenderId: "183415745299",
+        appId: "1:183415745299:web:db7a3e35e3a9c1962f48e6",
+        measurementId: "G-Z29255BPSE"
+    };
+
+    // Inicializa o Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const googleProvider = new firebase.auth.GoogleAuthProvider();
+    // --- FIM: Configuração do Firebase ---
+
+    // --- Seleção de Elementos do DOM ---
+    const loginPage = document.getElementById('login-page');
+    const dashboardPage = document.getElementById('dashboard-page');
+    const loginForm = document.getElementById('login-form');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const googleLoginBtn = document.getElementById('google-login');
+    const logoutBtn = document.getElementById('logout-btn');
+    const userNameSpan = document.getElementById('user-name');
+    const loginLoadingSpinner = document.getElementById('login-loading');
+    const togglePasswordBtn = document.getElementById('toggle-password');
+
+    // Toast de notificação
+    const toastElement = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+    const toast = new bootstrap.Toast(toastElement);
+
+    // --- Funções Auxiliares ---
+
+    /**
+     * Exibe o spinner de carregamento e desabilita o formulário.
+     * @param {boolean} isLoading - True para mostrar, false para esconder.
+     */
+    const setLoading = (isLoading) => {
+        loginLoadingSpinner.style.display = isLoading ? 'block' : 'none';
+        loginForm.style.display = isLoading ? 'none' : 'block';
+    };
+
+    /**
+     * Exibe uma notificação (toast).
+     * @param {string} message - A mensagem a ser exibida.
+     * @param {string} type - 'success' ou 'danger'.
+     */
+    const showToast = (message, type = 'success') => {
+        toastMessage.textContent = message;
+        toastElement.classList.remove('bg-success', 'bg-danger');
+        toastElement.classList.add(type === 'success' ? 'bg-success' : 'bg-danger');
+        toast.show();
+    };
+
+    // --- Lógica de Autenticação ---
+
+    /**
+     * Observador do estado de autenticação.
+     * Executado quando o usuário faz login ou logout.
+     */
+    auth.onAuthStateChanged(user => {
+        setLoading(false);
+        if (user) {
+            // Usuário está logado
+            loginPage.classList.add('d-none');
+            dashboardPage.classList.remove('d-none');
+            userNameSpan.textContent = user.displayName || user.email.split('@')[0];
+        } else {
+            // Usuário está deslogado
             loginPage.classList.remove('d-none');
+            dashboardPage.classList.add('d-none');
+            userNameSpan.textContent = 'Usuário';
+        }
+    });
+
+    /**
+     * Login com Email e Senha
+     */
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = emailInput.value;
+        const password = passwordInput.value;
+
+        if (!email || !password) {
+            showToast('Por favor, preencha email e senha.', 'danger');
+            return;
+        }
+
+        setLoading(true);
+        auth.signInWithEmailAndPassword(email, password)
+            .then(userCredential => {
+                // Login bem-sucedido, o onAuthStateChanged cuidará da UI.
+                console.log('Login bem-sucedido:', userCredential.user);
+                showToast('Login realizado com sucesso!');
+            })
+            .catch(error => {
+                console.error('Erro no login:', error);
+                let message = 'Ocorreu um erro ao tentar fazer login.';
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    message = 'Email ou senha inválidos.';
+                }
+                showToast(message, 'danger');
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    });
+
+    /**
+     * Login com Google
+     */
+    googleLoginBtn.addEventListener('click', () => {
+        setLoading(true);
+        auth.signInWithPopup(googleProvider)
+            .then(result => {
+                // Login com Google bem-sucedido.
+                console.log('Login com Google bem-sucedido:', result.user);
+                showToast('Login com Google realizado com sucesso!');
+            })
+            .catch(error => {
+                console.error('Erro no login com Google:', error);
+                showToast('Ocorreu um erro ao tentar login com Google.', 'danger');
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    });
+
+    /**
+     * Logout
+     */
+    logoutBtn.addEventListener('click', () => {
+        auth.signOut().then(() => {
+            // Logout bem-sucedido, o onAuthStateChanged cuidará da UI.
             showToast('Você saiu da sua conta.');
+        }).catch(error => {
+            console.error('Erro ao sair:', error);
+            showToast('Ocorreu um erro ao tentar sair.', 'danger');
         });
-        
-        // Toggle password visibility
-        document.getElementById('toggle-password').addEventListener('click', function() {
-            const passwordInput = document.getElementById('password');
-            const icon = this.querySelector('i');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                icon.classList.remove('bi-eye');
-                icon.classList.add('bi-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                icon.classList.remove('bi-eye-slash');
-                icon.classList.add('bi-eye');
-            }
-        });
-        
-        // Calcular preço por litro
-        document.getElementById('total-value').addEventListener('input', calculatePricePerLiter);
-        document.getElementById('liters').addEventListener('input', calculatePricePerLiter);
-        
-        function calculatePricePerLiter() {
-            const totalValue = parseFloat(document.getElementById('total-value').value) || 0;
-            const liters = parseFloat(document.getElementById('liters').value) || 0;
-            
-            if (liters > 0) {
-                const pricePerLiter = totalValue / liters;
-                document.getElementById('price-per-liter').value = pricePerLiter.toFixed(2);
-            } else {
-                document.getElementById('price-per-liter').value = '';
-            }
+    });
+
+    // --- Lógica da Interface (UI) ---
+
+    /**
+     * Alternar visibilidade da senha
+     */
+    togglePasswordBtn.addEventListener('click', () => {
+        const icon = togglePasswordBtn.querySelector('i');
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
         }
-        
-        // Cancelar novo abastecimento
-        document.getElementById('cancel-refuel').addEventListener('click', function() {
-            document.querySelectorAll('.nav-link').forEach(nav => {
-                nav.classList.remove('active');
-            });
-            document.querySelector('[data-page="dashboard"]').classList.add('active');
-            
-            document.querySelectorAll('.page-content').forEach(content => {
-                content.classList.remove('active-page');
-            });
-            document.getElementById('dashboard-content').classList.add('active-page');
-        });
-        
-        // Salvar novo abastecimento
-        document.getElementById('refuel-form').addEventListener('submit', function(e) {
+    });
+
+    /**
+     * Navegação entre as páginas do Dashboard
+     */
+    const sidebarLinks = document.querySelectorAll('.sidebar .nav-link');
+    const contentPages = document.querySelectorAll('.page-content');
+
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
             e.preventDefault();
-            
-            // Simular salvamento
-            showToast('Abastecimento salvo com sucesso!');
-            
-            // Resetar formulário
-            this.reset();
-            
-            // Voltar para dashboard
-            setTimeout(() => {
-                document.querySelectorAll('.nav-link').forEach(nav => {
-                    nav.classList.remove('active');
-                });
-                document.querySelector('[data-page="dashboard"]').classList.add('active');
-                
-                document.querySelectorAll('.page-content').forEach(content => {
-                    content.classList.remove('active-page');
-                });
-                document.getElementById('dashboard-content').classList.add('active-page');
-            }, 2000);
+
+            // Remove a classe 'active' de todos os links e páginas
+            sidebarLinks.forEach(l => l.classList.remove('active'));
+            contentPages.forEach(p => p.classList.remove('active-page'));
+
+            // Adiciona a classe 'active' ao link clicado
+            link.classList.add('active');
+
+            // Mostra a página de conteúdo correspondente
+            const page = link.getAttribute('data-page');
+            const targetPage = document.getElementById(`${page}-content`);
+            if (targetPage) {
+                targetPage.classList.add('active-page');
+            }
         });
-        
-        // Exportar CSV
-        document.getElementById('export-csv').addEventListener('click', function() {
-            showToast('Exportando dados para CSV...');
-            // Simular exportação
-            setTimeout(() => {
-                showToast('Arquivo CSV exportado com sucesso!');
-            }, 1500);
-        });
-        
-        // Aplicar filtros
-        document.getElementById('apply-filters').addEventListener('click', function() {
-            showToast('Filtros aplicados com sucesso!');
-        });
-        
-        // Inicializar gráficos
-        function initCharts() {
-            // Gráfico de gastos mensais (Dashboard)
-            const spendingCtx = document.getElementById('spendingChart').getContext('2d');
-            new Chart(spendingCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
-                    datasets: [{
-                        label: 'Gastos Mensais (R$)',
-                        data: [380, 420, 390, 450, 410, 450],
-                        backgroundColor: 'rgba(37, 99, 235, 0.7)',
-                        borderColor: 'rgba(37, 99, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-            
-            // Gráfico de consumo médio por mês
-            const consumptionCtx = document.getElementById('consumptionChart').getContext('2d');
-            new Chart(consumptionCtx, {
-                type: 'line',
-                data: {
-                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
-                    datasets: [{
-                        label: 'Consumo Médio (km/L)',
-                        data: [11.5, 12.2, 13.0, 12.8, 12.3, 12.5],
-                        borderColor: 'rgba(16, 185, 129, 1)',
-                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                        tension: 0.3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
-            
-            // Gráfico de gastos mensais (Estatísticas)
-            const monthlySpendingCtx = document.getElementById('monthlySpendingChart').getContext('2d');
-            new Chart(monthlySpendingCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
-                    datasets: [{
-                        label: 'Gastos Mensais (R$)',
-                        data: [380, 420, 390, 450, 410, 450],
-                        backgroundColor: 'rgba(245, 158, 11, 0.7)',
-                        borderColor: 'rgba(245, 158, 11, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
-            
-            // Gráfico de distribuição por tipo de combustível
-            const fuelTypeCtx = document.getElementById('fuelTypeChart').getContext('2d');
-            new Chart(fuelTypeCtx, {
-                type: 'pie',
-                data: {
-                    labels: ['Gasolina', 'Etanol', 'Diesel', 'GNV'],
-                    datasets: [{
-                        data: [45, 30, 20, 5],
-                        backgroundColor: [
-                            'rgba(37, 99, 235, 0.7)',
-                            'rgba(16, 185, 129, 0.7)',
-                            'rgba(245, 158, 11, 0.7)',
-                            'rgba(14, 165, 233, 0.7)'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
-            
-            // Gráfico de quilometragem acumulada
-            const mileageCtx = document.getElementById('mileageChart').getContext('2d');
-            new Chart(mileageCtx, {
-                type: 'line',
-                data: {
-                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
-                    datasets: [{
-                        label: 'Quilometragem Acumulada (km)',
-                        data: [42000, 42800, 43500, 44000, 44700, 45200],
-                        borderColor: 'rgba(14, 165, 233, 1)',
-                        backgroundColor: 'rgba(14, 165, 233, 0.2)',
-                        tension: 0.3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
+    });
+
+    /**
+     * Cálculo automático do preço por litro
+     */
+    const totalValueInput = document.getElementById('total-value');
+    const litersInput = document.getElementById('liters');
+    const pricePerLiterInput = document.getElementById('price-per-liter');
+
+    const calculatePricePerLiter = () => {
+        const total = parseFloat(totalValueInput.value);
+        const liters = parseFloat(litersInput.value);
+
+        if (total > 0 && liters > 0) {
+            const pricePerLiter = total / liters;
+            pricePerLiterInput.value = pricePerLiter.toFixed(2);
+        } else {
+            pricePerLiterInput.value = '';
         }
-        
-        // Inicializar quando o DOM estiver pronto
-        document.addEventListener('DOMContentLoaded', function() {
-            // Definir data atual como padrão
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('refuel-date').value = today;
-            
-            // Inicializar primeiro gráfico (Dashboard)
-            initCharts();
-        });
+    };
+
+    totalValueInput.addEventListener('input', calculatePricePerLiter);
+    litersInput.addEventListener('input', calculatePricePerLiter);
+});
