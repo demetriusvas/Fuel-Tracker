@@ -62,6 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Elementos da Página de Histórico ---
     const historyTableBody = document.getElementById('refuel-history-table');
+    const filterDateStartInput = document.getElementById('filter-date-start');
+    const filterDateEndInput = document.getElementById('filter-date-end');
+    const filterFuelTypeInput = document.getElementById('filter-fuel-type');
+    const applyFiltersBtn = document.getElementById('apply-filters');
+
 
     // --- Modais de Ação ---
     const editRefuelModalElement = document.getElementById('edit-refuel-modal');
@@ -596,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Busca e exibe o histórico de abastecimentos do usuário logado.
      */
-    const fetchAndDisplayHistory = () => {
+    const fetchAndDisplayHistory = (filters = {}) => {
         const user = auth.currentUser;
         if (!user) {
             historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Faça login para ver seu histórico.</td></tr>';
@@ -606,11 +611,23 @@ document.addEventListener('DOMContentLoaded', () => {
         // Exibe um indicador de carregamento
         historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Carregando...</span></div></td></tr>';
 
-        db.collection('refuels')
-            .where('userId', '==', user.uid) // Filtra apenas os registros do usuário logado
-            .orderBy('date', 'asc') // Ordena do mais antigo para o mais novo para calcular
-            .orderBy('createdAt', 'asc') // Critério de desempate para datas iguais
-            .get()
+        let query = db.collection('refuels').where('userId', '==', user.uid);
+
+        // Aplica os filtros à consulta
+        if (filters.startDate) {
+            query = query.where('date', '>=', filters.startDate);
+        }
+        if (filters.endDate) {
+            query = query.where('date', '<=', filters.endDate);
+        }
+        if (filters.fuelType) {
+            query = query.where('fuelType', '==', filters.fuelType);
+        }
+
+        // Adiciona a ordenação
+        query = query.orderBy('date', 'asc').orderBy('createdAt', 'asc');
+
+        query.get()
             .then(querySnapshot => {
                 historyTableBody.innerHTML = ''; // Limpa a tabela
 
@@ -674,6 +691,23 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
 
+    /**
+     * Event listener para o botão de aplicar filtros.
+     */
+    applyFiltersBtn.addEventListener('click', () => {
+        const filters = {
+            startDate: filterDateStartInput.value,
+            endDate: filterDateEndInput.value,
+            fuelType: filterFuelTypeInput.value,
+        };
+
+        // Remove chaves vazias para não enviar filtros em branco
+        Object.keys(filters).forEach(key => {
+            if (!filters[key]) delete filters[key];
+        });
+
+        fetchAndDisplayHistory(filters);
+    });
     /**
      * Delegação de eventos para os botões de editar e excluir na tabela de histórico.
      */
@@ -838,7 +872,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Se a página clicada for o histórico, busca os dados
             if (page === 'history') {
-                fetchAndDisplayHistory();
+                // Limpa os filtros e busca a lista completa
+                filterDateStartInput.value = '';
+                filterDateEndInput.value = '';
+                filterFuelTypeInput.value = '';
+                fetchAndDisplayHistory(); // Busca sem filtros
             }
             // Se a página clicada for o dashboard, atualiza os dados
             if (page === 'dashboard') {
