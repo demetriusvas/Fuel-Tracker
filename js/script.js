@@ -87,6 +87,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const spendingChartCanvas = document.getElementById('spendingChart');
     let spendingChartInstance = null; // Variável para guardar a instância do gráfico
 
+    // --- Elementos da Página de Estatísticas ---
+    const statsContent = document.getElementById('statistics-content');
+    const statsPlaceholder = document.getElementById('stats-placeholder');
+    const consumptionChartCanvas = document.getElementById('consumptionChart');
+    const monthlySpendingChartCanvas = document.getElementById('monthlySpendingChart');
+    const fuelTypeChartCanvas = document.getElementById('fuelTypeChart');
+    const mileageChartCanvas = document.getElementById('mileageChart');
+    let consumptionChartInstance, monthlySpendingChartInstance, fuelTypeChartInstance, mileageChartInstance;
+
+    const bestConsumptionEl = document.getElementById('best-consumption');
+    const bestConsumptionDetailsEl = document.getElementById('best-consumption-details');
+    const worstConsumptionEl = document.getElementById('worst-consumption');
+    const worstConsumptionDetailsEl = document.getElementById('worst-consumption-details');
+    const mostUsedStationEl = document.getElementById('most-used-station');
+    const mostUsedStationDetailsEl = document.getElementById('most-used-station-details');
+
 
 
     // --- Funções Auxiliares ---
@@ -438,6 +454,146 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     /**
+     * Busca dados e atualiza a página de Estatísticas.
+     */
+    const updateStatisticsPage = () => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        // Limpa gráficos antigos para evitar sobreposição
+        if (consumptionChartInstance) consumptionChartInstance.destroy();
+        if (monthlySpendingChartInstance) monthlySpendingChartInstance.destroy();
+        if (fuelTypeChartInstance) fuelTypeChartInstance.destroy();
+        if (mileageChartInstance) mileageChartInstance.destroy();
+
+        // Mostra um estado de carregamento
+        bestConsumptionEl.textContent = '...';
+        worstConsumptionEl.textContent = '...';
+        mostUsedStationEl.textContent = '...';
+
+        db.collection('refuels')
+            .where('userId', '==', user.uid)
+            .orderBy('date', 'asc')
+            .get()
+            .then(querySnapshot => {
+                const allChartContainers = statsContent.querySelectorAll('.chart-container');
+
+                // Verifica se há dados suficientes
+                if (querySnapshot.docs.length < 2) {
+                    statsPlaceholder.classList.remove('d-none');
+                    allChartContainers.forEach(c => c.style.display = 'none');
+                    bestConsumptionEl.textContent = 'N/A';
+                    worstConsumptionEl.textContent = 'N/A';
+                    mostUsedStationEl.textContent = 'N/A';
+                    return;
+                }
+
+                statsPlaceholder.classList.add('d-none');
+                allChartContainers.forEach(c => c.style.display = 'block');
+
+                const refuels = querySnapshot.docs.map(doc => doc.data());
+
+                // --- Cálculos para os Cards ---
+                const consumptions = [];
+                refuels.forEach((current, index) => {
+                    if (index < refuels.length - 1) {
+                        const next = refuels[index + 1];
+                        const km = next.mileage - current.mileage;
+                        if (km > 0 && current.liters > 0) {
+                            consumptions.push({
+                                value: km / current.liters,
+                                date: next.date,
+                                gasStation: next.gasStation || 'Não informado'
+                            });
+                        }
+                    }
+                });
+
+                if (consumptions.length > 0) {
+                    const best = consumptions.reduce((max, c) => c.value > max.value ? c : max, consumptions[0]);
+                    const worst = consumptions.reduce((min, c) => c.value < min.value ? c : min, consumptions[0]);
+                    bestConsumptionEl.textContent = `${best.value.toFixed(1).replace('.', ',')} km/L`;
+                    bestConsumptionDetailsEl.textContent = `${best.gasStation} - ${new Date(best.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`;
+                    worstConsumptionEl.textContent = `${worst.value.toFixed(1).replace('.', ',')} km/L`;
+                    worstConsumptionDetailsEl.textContent = `${worst.gasStation} - ${new Date(worst.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`;
+                }
+
+                const stationCounts = refuels.reduce((acc, r) => {
+                    if (r.gasStation) acc[r.gasStation] = (acc[r.gasStation] || 0) + 1;
+                    return acc;
+                }, {});
+                const mostUsed = Object.entries(stationCounts).sort((a, b) => b[1] - a[1])[0];
+                if (mostUsed) {
+                    mostUsedStationEl.textContent = mostUsed[0];
+                    mostUsedStationDetailsEl.textContent = `${mostUsed[1]} abastecimento(s)`;
+                }
+
+                // --- Funções para renderizar gráficos ---
+                const renderChart = (canvas, config) => new Chart(canvas, config);
+
+                // Gráfico 1: Consumo Médio por Mês
+                const consumptionByMonth = consumptions.reduce((acc, c) => {
+                    const monthKey = c.date.substring(0, 7);
+                    if (!acc[monthKey]) acc[monthKey] = [];
+                    acc[monthKey].push(c.value);
+                    return acc;
+                }, {});
+                const avgConsumptionByMonth = Object.entries(consumptionByMonth).reduce((acc, [key, values]) => {
+                    acc[key] = values.reduce((a, b) => a + b, 0) / values.length;
+                    return acc;
+                }, {});
+                consumptionChartInstance = renderChart(consumptionChartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: Object.keys(avgConsumptionByMonth).map(k => new Date(k + '-02').toLocaleString('pt-BR', { month: 'short', year: '2-digit' })),
+                        datasets: [{ label: 'Consumo (km/L)', data: Object.values(avgConsumptionByMonth), borderColor: 'rgba(54, 162, 235, 1)', tension: 0.1 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                // Gráfico 2: Gastos Mensais (similar ao do dashboard)
+                const spendingByMonth = refuels.reduce((acc, r) => {
+                    const monthKey = r.date.substring(0, 7);
+                    acc[monthKey] = (acc[monthKey] || 0) + r.totalValue;
+                    return acc;
+                }, {});
+                monthlySpendingChartInstance = renderChart(monthlySpendingChartCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(spendingByMonth).map(k => new Date(k + '-02').toLocaleString('pt-BR', { month: 'short', year: '2-digit' })),
+                        datasets: [{ label: 'Gasto (R$)', data: Object.values(spendingByMonth), backgroundColor: 'rgba(255, 99, 132, 0.6)' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                // Gráfico 3: Distribuição por Tipo de Combustível (gasto)
+                const spendingByFuelType = refuels.reduce((acc, r) => {
+                    const type = r.fuelType.charAt(0).toUpperCase() + r.fuelType.slice(1);
+                    acc[type] = (acc[type] || 0) + r.totalValue;
+                    return acc;
+                }, {});
+                fuelTypeChartInstance = renderChart(fuelTypeChartCanvas, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(spendingByFuelType),
+                        datasets: [{ data: Object.values(spendingByFuelType), backgroundColor: ['#FFC107', '#198754', '#6F42C1', '#FD7E14'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                // Gráfico 4: Quilometragem Acumulada
+                mileageChartInstance = renderChart(mileageChartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: refuels.map(r => new Date(r.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })),
+                        datasets: [{ label: 'Quilometragem (km)', data: refuels.map(r => r.mileage), borderColor: 'rgba(40, 167, 69, 1)', fill: false }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            });
+    };
+
+    /**
      * Busca e exibe o histórico de abastecimentos do usuário logado.
      */
     const fetchAndDisplayHistory = () => {
@@ -687,6 +843,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Se a página clicada for o dashboard, atualiza os dados
             if (page === 'dashboard') {
                 updateDashboard();
+            }
+            // Se a página clicada for as estatísticas, atualiza os dados
+            if (page === 'statistics') {
+                updateStatisticsPage();
             }
         });
     });

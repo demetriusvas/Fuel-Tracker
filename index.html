@@ -395,6 +395,10 @@
                                 <h5 class="mb-0">Estatísticas Detalhadas</h5>
                             </div>
                             <div class="card-body">
+                                <div id="stats-placeholder" class="text-center p-5 d-none">
+                                    <h4>Dados insuficientes para gerar estatísticas.</h4>
+                                    <p class="text-muted">É necessário ter pelo menos dois registros de abastecimento para os cálculos.</p>
+                                </div>
                                 <div class="row g-4">
                                     <div class="col-md-6">
                                         <div class="card">
@@ -451,8 +455,8 @@
                                         <div class="card stats-card">
                                             <div class="card-body">
                                                 <h6 class="text-muted">Melhor Consumo</h6>
-                                                <h4>15.2 km/L</h4>
-                                                <small class="text-muted">Posto Central - 05/05/2023</small>
+                                                <h4 id="best-consumption"></h4>
+                                                <small class="text-muted" id="best-consumption-details"></small>
                                             </div>
                                         </div>
                                     </div>
@@ -460,8 +464,8 @@
                                         <div class="card stats-card">
                                             <div class="card-body">
                                                 <h6 class="text-muted">Pior Consumo</h6>
-                                                <h4>9.8 km/L</h4>
-                                                <small class="text-muted">Shell Express - 20/04/2023</small>
+                                                <h4 id="worst-consumption"></h4>
+                                                <small class="text-muted" id="worst-consumption-details"></small>
                                             </div>
                                         </div>
                                     </div>
@@ -469,8 +473,8 @@
                                         <div class="card stats-card">
                                             <div class="card-body">
                                                 <h6 class="text-muted">Posto Mais Utilizado</h6>
-                                                <h4>Posto Central</h4>
-                                                <small class="text-muted">12 abastecimentos</small>
+                                                <h4 id="most-used-station"></h4>
+                                                <small class="text-muted" id="most-used-station-details"></small>
                                             </div>
                                         </div>
                                     </div>
