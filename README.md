@@ -6,18 +6,16 @@
 
 Você pode acessar o projeto online clicando no link abaixo:
 
-🔗 [Acesse o projeto online](https://google.com)
+🔗 [Acesse o projeto online](https://fuel-tracker-one.vercel.app/)
 
 
 ## 📸 Print da Página
 
-![Preview do site](./tela1.png)
+![Preview do site](img/fuel-tracker-tela-login.png)
 
-![Preview do site](./tela2.png)
+![Preview do site](img/fuel-tracker-tela-principal.png)
 
-![Preview do site](./tela3.png)
-
-![Preview do site](./tela4.png)
+![Preview do site](img/fuel-tracker-tela-novo-abastecimento.png)
 
 ## 🛠️ Tecnologias Utilizadas
 
