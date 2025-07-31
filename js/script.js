@@ -74,8 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Estado da Paginação ---
     let historyCurrentPage = 1;
     const recordsPerPage = 20;
-    let lastVisibleDoc = null; // Guarda o último documento da página atual para buscar a próxima
-    let firstVisibleDocsStack = [null]; // Pilha para guardar o primeiro documento de cada página para voltar
+    let pageStartCursors = [null]; // Pilha para guardar o cursor inicial de cada página.
     let isLastPage = false;
 
 
@@ -640,8 +639,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (direction === 'first') {
             historyCurrentPage = 1;
-            firstVisibleDocsStack = [null];
-            lastVisibleDoc = null;
+            pageStartCursors = [null];
+        } else if (direction === 'next') {
+            historyCurrentPage++;
+        } else if (direction === 'prev') {
+            historyCurrentPage--;
         }
         const user = auth.currentUser;
         if (!user) {
@@ -666,17 +668,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Adiciona a ordenação e os cursores de paginação
-        let finalQuery = query.orderBy('date', 'asc').orderBy('createdAt', 'asc');
+        let finalQuery = query.orderBy('date', 'desc').orderBy('createdAt', 'desc');
 
-        if (direction === 'next' && lastVisibleDoc) {
-            finalQuery = finalQuery.startAfter(lastVisibleDoc);
-        } else if (direction === 'prev') {
-            // Remove o cursor da página atual para obter o da página anterior
-            firstVisibleDocsStack.pop();
-            const prevPageStartDoc = firstVisibleDocsStack[firstVisibleDocsStack.length - 1];
-            if (prevPageStartDoc) {
-                finalQuery = finalQuery.startAfter(prevPageStartDoc);
-            }
+        const cursor = pageStartCursors[historyCurrentPage - 1];
+        if (cursor) {
+            finalQuery = finalQuery.startAfter(cursor);
         }
 
         // Busca um registro a mais para saber se existe uma próxima página e para calcular o consumo do último item
@@ -705,13 +701,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Define 'N/A' como padrão. O cálculo abaixo irá sobrescrever se for bem-sucedido.
                     currentRefuel.consumption = 'N/A';
 
-                    // O consumo só pode ser calculado se houver um próximo abastecimento
+                    // O consumo do registro ATUAL é calculado com base no registro ANTERIOR no tempo (que é o próximo no array desc)
                     if (index < allFetchedRefuels.length - 1) {
-                        const nextRefuel = allFetchedRefuels[index + 1];
-                        const kmTraveled = nextRefuel.mileage - currentRefuel.mileage;
+                        const previousRefuelInTime = allFetchedRefuels[index + 1];
+                        const kmTraveled = currentRefuel.mileage - previousRefuelInTime.mileage;
 
-                        if (kmTraveled > 0 && currentRefuel.liters > 0) {
-                            const calculatedConsumption = (kmTraveled / currentRefuel.liters).toFixed(2);
+                        if (kmTraveled > 0 && previousRefuelInTime.liters > 0) {
+                            const calculatedConsumption = (kmTraveled / previousRefuelInTime.liters).toFixed(2);
                             // Adiciona a propriedade de consumo ao objeto do abastecimento ATUAL
                             currentRefuel.consumption = `${calculatedConsumption.replace('.', ',')} km/l`;
                         }
@@ -721,8 +717,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Pega apenas os registros que serão renderizados (os 20 primeiros)
                 const refuelsToRender = allFetchedRefuels.slice(0, recordsPerPage);
 
-                // 3. Renderiza a tabela na ordem inversa (do mais novo para o mais antigo)
-                refuelsToRender.reverse().forEach(data => {
+                // 3. Renderiza a tabela (já está na ordem correta)
+                refuelsToRender.forEach(data => {
                     const docId = data.id;
                     const row = document.createElement('tr');
                     // Formata a data para o padrão brasileiro, corrigindo problemas de fuso horário
@@ -745,20 +741,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             </button>
                         </td>
                     `;
-                    historyTableBody.appendChild(row); // Adiciona no final, pois o array já está invertido
+                    historyTableBody.appendChild(row);
                 });
 
                 // Atualiza o estado da paginação
-                if (!querySnapshot.empty) {
-                    if (direction === 'next') {
-                        historyCurrentPage++;
-                        firstVisibleDocsStack.push(docsForDisplay[0]);
-                    } else if (direction === 'prev') {
-                        historyCurrentPage--;
-                    }
-                    lastVisibleDoc = docsForDisplay[docsForDisplay.length - 1];
+                if (direction === 'next' && !isLastPage) {
+                    const lastDocOfPage = docsForDisplay[docsForDisplay.length - 1];
+                    pageStartCursors.push(lastDocOfPage);
+                } else if (direction === 'prev') {
+                    pageStartCursors.pop();
                 }
-
                 updatePaginationUI(); // Atualiza os botões de paginação
             })
             .catch(error => {
