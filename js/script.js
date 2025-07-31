@@ -339,6 +339,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // 2. Calcula o consumo para cada abastecimento (olhando para o próximo)
                 refuels.forEach((currentRefuel, index) => {
+                    // Define 'N/A' como padrão. O cálculo abaixo irá sobrescrever se for bem-sucedido.
+                    currentRefuel.consumption = 'N/A';
+
                     // O consumo só pode ser calculado se houver um próximo abastecimento
                     if (index < refuels.length - 1) {
                         const nextRefuel = refuels[index + 1];
@@ -348,12 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const calculatedConsumption = (kmTraveled / currentRefuel.liters).toFixed(2);
                             // Adiciona a propriedade de consumo ao objeto do abastecimento ATUAL
                             currentRefuel.consumption = `${calculatedConsumption.replace('.', ',')} km/l`;
-                        } else {
-                            currentRefuel.consumption = 'N/A';
                         }
-                    } else {
-                        // O último abastecimento (o mais recente) ainda não tem consumo calculado
-                        currentRefuel.consumption = 'N/A';
                     }
                 });
 
