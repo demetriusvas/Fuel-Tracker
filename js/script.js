@@ -78,6 +78,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const editTotalValueInput = document.getElementById('edit-total-value');
     const editPricePerLiterInput = document.getElementById('edit-price-per-liter');
 
+    // --- Elementos do Dashboard ---
+    const avgConsumptionEl = document.getElementById('avg-consumption');
+    const monthlySpendingEl = document.getElementById('monthly-spending');
+    const lastRefuelDateEl = document.getElementById('last-refuel-date');
+    const currentMileageEl = document.getElementById('current-mileage');
+    const recentRefuelsList = document.getElementById('recent-refuels');
+    const spendingChartCanvas = document.getElementById('spendingChart');
+    let spendingChartInstance = null; // Variável para guardar a instância do gráfico
+
 
 
     // --- Funções Auxiliares ---
@@ -119,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
             createAccountPage.classList.add('d-none');
             dashboardPage.classList.remove('d-none');
             userNameSpan.textContent = user.displayName || user.email.split('@')[0];
+            updateDashboard(); // Atualiza o dashboard ao logar
         } else {
             // Usuário está deslogado
             createAccountPage.classList.add('d-none'); // Garante que a tela de registro esteja escondida
@@ -554,6 +564,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Se a página clicada for o histórico, busca os dados
             if (page === 'history') {
                 fetchAndDisplayHistory();
+            }
+            // Se a página clicada for o dashboard, atualiza os dados
+            if (page === 'dashboard') {
+                updateDashboard();
             }
         });
     });
