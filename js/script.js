@@ -60,6 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const observationsInput = document.getElementById('observations');
     const cancelRefuelBtn = document.getElementById('cancel-refuel');
 
+    // --- Elementos da Página de Histórico ---
+    const historyTableBody = document.getElementById('refuel-history-table');
+
 
     // --- Funções Auxiliares ---
 
@@ -289,6 +292,67 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('[data-page="dashboard"]').click();
     });
 
+    /**
+     * Busca e exibe o histórico de abastecimentos do usuário logado.
+     */
+    const fetchAndDisplayHistory = () => {
+        const user = auth.currentUser;
+        if (!user) {
+            historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Faça login para ver seu histórico.</td></tr>';
+            return;
+        }
+
+        // Exibe um indicador de carregamento
+        historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Carregando...</span></div></td></tr>';
+
+        db.collection('refuels')
+            .where('userId', '==', user.uid) // Filtra apenas os registros do usuário logado
+            .orderBy('date', 'desc') // Ordena pelos mais recentes primeiro
+            .get()
+            .then(querySnapshot => {
+                historyTableBody.innerHTML = ''; // Limpa a tabela antes de adicionar os novos dados
+
+                if (querySnapshot.empty) {
+                    historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum abastecimento registrado ainda.</td></tr>';
+                    return;
+                }
+
+                querySnapshot.forEach(doc => {
+                    const data = doc.data();
+                    const docId = doc.id;
+
+                    const row = historyTableBody.insertRow();
+
+                    // Formata a data para o padrão brasileiro, corrigindo problemas de fuso horário
+                    const formattedDate = new Date(data.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+
+                    row.innerHTML = `
+                        <td>${formattedDate}</td>
+                        <td>${data.mileage.toLocaleString('pt-BR')}</td>
+                        <td>${data.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>R$ ${data.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>R$ ${data.pricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>N/A</td> <!-- O cálculo de consumo requer o registro anterior -->
+                        <td>${data.gasStation || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" data-id="${docId}" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" data-id="${docId}" title="Excluir">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                });
+            })
+            .catch(error => {
+                console.error("Erro ao buscar histórico: ", error);
+                historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Erro ao carregar o histórico. Tente novamente mais tarde.</td></tr>';
+                showToast('Erro ao carregar o histórico.', 'danger');
+            });
+    };
+
+
     // --- Lógica da Interface (UI) ---
 
     /**
@@ -349,6 +413,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetPage = document.getElementById(`${page}-content`);
             if (targetPage) {
                 targetPage.classList.add('active-page');
+            }
+
+            // Se a página clicada for o histórico, busca os dados
+            if (page === 'history') {
+                fetchAndDisplayHistory();
             }
         });
     });
