@@ -26,6 +26,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const googleLoginBtn = document.getElementById('google-login');
     const logoutBtn = document.getElementById('logout-btn');
     const userNameSpan = document.getElementById('user-name');
+    const createAccountLink = document.getElementById('create-account');
+    const forgotPasswordLink = document.getElementById('forgot-password');
+
+    // --- Elementos da Página de Criação de Conta ---
+    const createAccountPage = document.getElementById('create-account-page');
+    const createAccountForm = document.getElementById('create-account-form');
+    const newEmailInput = document.getElementById('new-email');
+    const newPasswordInput = document.getElementById('new-password');
+    const confirmPasswordInput = document.getElementById('confirm-password');
+    const backToLoginLink = document.getElementById('back-to-login');
     const loginLoadingSpinner = document.getElementById('login-loading');
     const togglePasswordBtn = document.getElementById('toggle-password');
 
@@ -33,6 +43,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const toastElement = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
     const toast = new bootstrap.Toast(toastElement);
+
+    // Modal de "Esqueci a Senha"
+    const forgotPasswordModalElement = document.getElementById('forgot-password-modal');
+    const forgotPasswordModal = new bootstrap.Modal(forgotPasswordModalElement);
+    const forgotPasswordForm = document.getElementById('forgot-password-form');
+    const resetEmailInput = document.getElementById('reset-email');
 
     // --- Funções Auxiliares ---
 
@@ -42,6 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     const setLoading = (isLoading) => {
         loginLoadingSpinner.style.display = isLoading ? 'block' : 'none';
+        // Esconde ambos os formulários durante o carregamento
+        createAccountForm.style.display = isLoading ? 'none' : 'block';
         loginForm.style.display = isLoading ? 'none' : 'block';
     };
 
@@ -68,10 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user) {
             // Usuário está logado
             loginPage.classList.add('d-none');
+            createAccountPage.classList.add('d-none');
             dashboardPage.classList.remove('d-none');
             userNameSpan.textContent = user.displayName || user.email.split('@')[0];
         } else {
             // Usuário está deslogado
+            createAccountPage.classList.add('d-none'); // Garante que a tela de registro esteja escondida
             loginPage.classList.remove('d-none');
             dashboardPage.classList.add('d-none');
             userNameSpan.textContent = 'Usuário';
@@ -144,6 +164,67 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    /**
+     * Lógica para Criar Conta
+     */
+    createAccountForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = newEmailInput.value;
+        const password = newPasswordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+
+        if (password !== confirmPassword) {
+            showToast('As senhas não coincidem.', 'danger');
+            return;
+        }
+
+        setLoading(true);
+        auth.createUserWithEmailAndPassword(email, password)
+            .then(userCredential => {
+                // Sucesso! O onAuthStateChanged vai lidar com a mudança de tela.
+                console.log('Conta criada com sucesso:', userCredential.user);
+                showToast('Conta criada com sucesso! Bem-vindo(a)!');
+            })
+            .catch(error => {
+                console.error('Erro ao criar conta:', error);
+                let message = 'Ocorreu um erro ao criar a conta.';
+                if (error.code === 'auth/weak-password') {
+                    message = 'Sua senha é muito fraca. Use pelo menos 6 caracteres.';
+                } else if (error.code === 'auth/email-already-in-use') {
+                    message = 'Este e-mail já está em uso.';
+                } else if (error.code === 'auth/invalid-email') {
+                    message = 'O e-mail fornecido é inválido.';
+                }
+                showToast(message, 'danger');
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    });
+
+    /**
+     * Lógica para "Esqueci a Senha"
+     */
+    forgotPasswordForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = resetEmailInput.value;
+
+        auth.sendPasswordResetEmail(email)
+            .then(() => {
+                forgotPasswordModal.hide();
+                showToast('Link de recuperação enviado! Verifique seu e-mail.');
+            })
+            .catch(error => {
+                console.error('Erro ao enviar e-mail de recuperação:', error);
+                let message = 'Ocorreu um erro.';
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
+                    message = 'Nenhum usuário encontrado com este e-mail.';
+                }
+                showToast(message, 'danger');
+            });
+    });
+
+
     // --- Lógica da Interface (UI) ---
 
     /**
@@ -160,6 +241,26 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.classList.remove('bi-eye-slash');
             icon.classList.add('bi-eye');
         }
+    });
+
+    /**
+     * Alternar entre tela de Login e Criação de Conta
+     */
+    createAccountLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginPage.classList.add('d-none');
+        createAccountPage.classList.remove('d-none');
+    });
+
+    backToLoginLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        createAccountPage.classList.add('d-none');
+        loginPage.classList.remove('d-none');
+    });
+
+    forgotPasswordLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        forgotPasswordModal.show();
     });
 
     /**
