@@ -679,27 +679,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        finalQuery.limit(recordsPerPage).get()
+        // Busca um registro a mais para saber se existe uma próxima página e para calcular o consumo do último item
+        finalQuery.limit(recordsPerPage + 1).get()
             .then(querySnapshot => {
                 historyTableBody.innerHTML = ''; // Limpa a tabela
 
                 if (querySnapshot.empty) {
                     historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum abastecimento registrado ainda.</td></tr>';
+                    updatePaginationUI(true); // Esconde a paginação se não houver registros
                     return;
                 }
-                updatePaginationUI(querySnapshot.empty && historyCurrentPage === 1);
+
+                // Determina se esta é a última página
+                isLastPage = querySnapshot.docs.length <= recordsPerPage;
+
+                // Pega os documentos que serão de fato exibidos na página
+                const docsForDisplay = querySnapshot.docs.slice(0, recordsPerPage);
 
                 // 1. Converte os documentos para um array para facilitar o processamento
-                const refuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Usa todos os documentos buscados (até 21) para permitir o cálculo do último item
+                const allFetchedRefuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 // 2. Calcula o consumo para cada abastecimento (olhando para o próximo)
-                refuels.forEach((currentRefuel, index) => {
+                allFetchedRefuels.forEach((currentRefuel, index) => {
                     // Define 'N/A' como padrão. O cálculo abaixo irá sobrescrever se for bem-sucedido.
                     currentRefuel.consumption = 'N/A';
 
                     // O consumo só pode ser calculado se houver um próximo abastecimento
-                    if (index < refuels.length - 1) {
-                        const nextRefuel = refuels[index + 1];
+                    if (index < allFetchedRefuels.length - 1) {
+                        const nextRefuel = allFetchedRefuels[index + 1];
                         const kmTraveled = nextRefuel.mileage - currentRefuel.mileage;
 
                         if (kmTraveled > 0 && currentRefuel.liters > 0) {
@@ -710,8 +718,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
+                // Pega apenas os registros que serão renderizados (os 20 primeiros)
+                const refuelsToRender = allFetchedRefuels.slice(0, recordsPerPage);
+
                 // 3. Renderiza a tabela na ordem inversa (do mais novo para o mais antigo)
-                refuels.reverse().forEach(data => {
+                refuelsToRender.reverse().forEach(data => {
                     const docId = data.id;
                     const row = document.createElement('tr');
                     // Formata a data para o padrão brasileiro, corrigindo problemas de fuso horário
@@ -741,15 +752,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!querySnapshot.empty) {
                     if (direction === 'next') {
                         historyCurrentPage++;
-                        firstVisibleDocsStack.push(querySnapshot.docs[0]);
+                        firstVisibleDocsStack.push(docsForDisplay[0]);
                     } else if (direction === 'prev') {
                         historyCurrentPage--;
                     }
-                    lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+                    lastVisibleDoc = docsForDisplay[docsForDisplay.length - 1];
                 }
 
-                isLastPage = querySnapshot.docs.length < recordsPerPage;
-                updatePaginationUI();
+                updatePaginationUI(); // Atualiza os botões de paginação
             })
             .catch(error => {
                 console.error("Erro ao buscar histórico: ", error);
