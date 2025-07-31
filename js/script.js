@@ -319,6 +319,125 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /**
+     * Busca dados e atualiza os cards e gráficos do Dashboard.
+     */
+    const updateDashboard = () => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        // Define um estado de carregamento/padrão
+        avgConsumptionEl.textContent = '...';
+        monthlySpendingEl.textContent = '...';
+        lastRefuelDateEl.textContent = '...';
+        currentMileageEl.textContent = '...';
+        recentRefuelsList.innerHTML = '<div class="list-group-item">Carregando...</div>';
+
+        db.collection('refuels')
+            .where('userId', '==', user.uid)
+            .orderBy('date', 'asc')
+            .get()
+            .then(querySnapshot => {
+                if (querySnapshot.empty) {
+                    avgConsumptionEl.textContent = 'N/A';
+                    monthlySpendingEl.textContent = 'R$ 0,00';
+                    lastRefuelDateEl.textContent = 'N/A';
+                    currentMileageEl.textContent = 'N/A';
+                    recentRefuelsList.innerHTML = '<div class="list-group-item">Nenhum abastecimento registrado.</div>';
+                    // Limpa o gráfico se não houver dados
+                    if (spendingChartInstance) {
+                        spendingChartInstance.destroy();
+                        spendingChartInstance = null;
+                    }
+                    return;
+                }
+
+                const refuels = querySnapshot.docs.map(doc => doc.data());
+
+                // --- Cálculos para os Cards ---
+
+                // 1. Último abastecimento e quilometragem
+                const mostRecentRefuel = refuels[refuels.length - 1];
+                currentMileageEl.textContent = `${mostRecentRefuel.mileage.toLocaleString('pt-BR')} km`;
+                lastRefuelDateEl.textContent = new Date(mostRecentRefuel.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+
+                // 2. Gasto no mês atual
+                const now = new Date();
+                const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const monthlySpending = refuels
+                    .filter(r => r.date.substring(0, 7) === currentMonthKey)
+                    .reduce((sum, r) => sum + r.totalValue, 0);
+                monthlySpendingEl.textContent = `R$ ${monthlySpending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+                // 3. Consumo médio
+                const consumptions = [];
+                refuels.forEach((current, index) => {
+                    if (index < refuels.length - 1) {
+                        const next = refuels[index + 1];
+                        const km = next.mileage - current.mileage;
+                        if (km > 0 && current.liters > 0) {
+                            consumptions.push(km / current.liters);
+                        }
+                    }
+                });
+                const avgConsumption = consumptions.length > 0 ? consumptions.reduce((a, b) => a + b, 0) / consumptions.length : 0;
+                avgConsumptionEl.textContent = `${avgConsumption.toFixed(1).replace('.', ',')} km/L`;
+
+                // --- Lista de Abastecimentos Recentes ---
+                recentRefuelsList.innerHTML = '';
+                const recentThree = [...refuels].reverse().slice(0, 3);
+                recentThree.forEach(r => {
+                    const date = new Date(r.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+                    const item = `
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">${r.gasStation || 'Não informado'}</h6>
+                                    <small class="text-muted">${date} - ${r.fuelType.charAt(0).toUpperCase() + r.fuelType.slice(1)}</small>
+                                </div>
+                                <span class="fw-bold">R$ ${r.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>`;
+                    recentRefuelsList.innerHTML += item;
+                });
+
+                // --- Dados para o Gráfico ---
+                const spendingByMonth = {};
+                refuels.forEach(r => {
+                    const monthKey = r.date.substring(0, 7); // 'YYYY-MM'
+                    spendingByMonth[monthKey] = (spendingByMonth[monthKey] || 0) + r.totalValue;
+                });
+
+                const chartLabels = Object.keys(spendingByMonth).map(key => {
+                    const [year, month] = key.split('-');
+                    return new Date(year, month - 1).toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
+                });
+                const chartData = Object.values(spendingByMonth);
+
+                // Atualiza ou cria o gráfico
+                if (spendingChartInstance) {
+                    spendingChartInstance.data.labels = chartLabels;
+                    spendingChartInstance.data.datasets[0].data = chartData;
+                    spendingChartInstance.update();
+                } else {
+                    spendingChartInstance = new Chart(spendingChartCanvas, {
+                        type: 'bar',
+                        data: {
+                            labels: chartLabels,
+                            datasets: [{
+                                label: 'Gasto (R$)',
+                                data: chartData,
+                                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            });
+    };
+
+    /**
      * Busca e exibe o histórico de abastecimentos do usuário logado.
      */
     const fetchAndDisplayHistory = () => {
