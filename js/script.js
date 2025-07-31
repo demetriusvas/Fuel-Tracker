@@ -346,9 +346,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         const previousRefuel = refuels[index - 1];
                         const kmTraveled = data.mileage - previousRefuel.mileage;
  
-                        // Garante que o cálculo é válido (km rodados e litros > 0)
-                        if (kmTraveled > 0 && data.liters > 0) {
-                            const calculatedConsumption = (kmTraveled / data.liters).toFixed(2);
+                        // Garante que o cálculo é válido (km rodados e litros do abastecimento ANTERIOR > 0)
+                        if (kmTraveled > 0 && previousRefuel.liters > 0) {
+                            const calculatedConsumption = (kmTraveled / previousRefuel.liters).toFixed(2);
                             consumption = `${calculatedConsumption.replace('.', ',')} km/l`;
                         }
                     }
