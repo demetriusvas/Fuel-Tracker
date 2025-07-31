@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuelControl - Controle de Combustível</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Toast Container -->
+    <div class="toast-container">
+        <div id="toast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toast-message">
+                    Operação realizada com sucesso!
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tela de Login -->
+    <div id="login-page" class="container d-flex align-items-center min-vh-100">
+        <div class="login-container w-100">
+            <div class="text-center mb-5">
+                <div class="d-flex justify-content-center mb-3">
+                    <div class="p-3 rounded-circle bg-primary text-white" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-fuel-pump fs-1"></i>
+                    </div>
+                </div>
+                <h1 class="h3 fw-bold text-primary">FuelControl</h1>
+                <p class="text-muted">Controle seus gastos com combustível</p>
+            </div>
+            
+            <div class="card p-4">
+                <div class="loading-spinner text-center mb-3" id="login-loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+                <form id="login-form">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Senha</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" required>
+                            <button class="btn btn-outline-secondary" type="button" id="toggle-password">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-primary">Entrar</button>
+                    </div>
+                    <div class="text-center mb-3">
+                        <button type="button" class="btn btn-outline-danger w-100" id="google-login">
+                            <i class="bi bi-google me-2"></i>Login com Google
+                        </button>
+                    </div>
+                    <div class="text-center">
+                        <a href="#" class="text-decoration-none" id="forgot-password">Esqueceu a senha?</a>
+                        <span class="mx-2">|</span>
+                        <a href="#" class="text-decoration-none" id="create-account">Criar conta</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dashboard Principal -->
+    <div id="dashboard-page" class="d-none">
+        <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+            <div class="container">
+                <a class="navbar-brand" href="#">
+                    <i class="bi bi-fuel-pump me-2"></i>FuelControl
+                </a>
+                <div class="d-flex align-items-center">
+                    <span class="me-3">Olá, <span id="user-name">Usuário</span></span>
+                    <button class="btn btn-outline-danger btn-sm" id="logout-btn">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container mt-4">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-lg-3 mb-4">
+                    <div class="sidebar p-3">
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#" data-page="dashboard">
+                                    <i class="bi bi-speedometer2"></i> Dashboard
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-page="new-refuel">
+                                    <i class="bi bi-fuel-pump"></i> Novo Abastecimento
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-page="history">
+                                    <i class="bi bi-clock-history"></i> Histórico
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-page="statistics">
+                                    <i class="bi bi-bar-chart"></i> Estatísticas
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Conteúdo das Páginas -->
+                <div class="col-lg-9">
+                    <!-- Dashboard Content -->
+                    <div id="dashboard-content" class="page-content active-page">
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-3">
+                                <div class="card stats-card h-100">
+                                    <div class="card-body d-flex align-items-center">
+                                        <div class="stat-icon bg-primary-light">
+                                            <i class="bi bi-speedometer2"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-muted mb-1">Consumo Médio</h6>
+                                            <h4 class="mb-0" id="avg-consumption">12.5 km/L</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card h-100">
+                                    <div class="card-body d-flex align-items-center">
+                                        <div class="stat-icon bg-success-light">
+                                            <i class="bi bi-currency-dollar"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-muted mb-1">Gasto Mensal</h6>
+                                            <h4 class="mb-0" id="monthly-spending">R$ 450,00</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card h-100">
+                                    <div class="card-body d-flex align-items-center">
+                                        <div class="stat-icon bg-warning-light">
+                                            <i class="bi bi-calendar-check"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-muted mb-1">Último Abastecimento</h6>
+                                            <h4 class="mb-0" id="last-refuel-date">15/06</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card h-100">
+                                    <div class="card-body d-flex align-items-center">
+                                        <div class="stat-icon bg-info-light">
+                                            <i class="bi bi-signpost"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-muted mb-1">Quilometragem</h6>
+                                            <h4 class="mb-0" id="current-mileage">45.200 km</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-4">
+                            <div class="col-lg-8">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h5 class="mb-0">Gastos Mensais</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="spendingChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h5 class="mb-0">Últimos Abastecimentos</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="list-group list-group-flush" id="recent-refuels">
+                                            <div class="list-group-item">
+                                                <div class="d-flex justify-content-between">
+                                                    <div>
+                                                        <h6 class="mb-1">Posto Central</h6>
+                                                        <small class="text-muted">15/06 - Gasolina</small>
+                                                    </div>
+                                                    <span class="fw-bold">R$ 250,00</span>
+                                                </div>
+                                            </div>
+                                            <div class="list-group-item">
+                                                <div class="d-flex justify-content-between">
+                                                    <div>
+                                                        <h6 class="mb-1">Auto Posto XYZ</h6>
+                                                        <small class="text-muted">10/06 - Etanol</small>
+                                                    </div>
+                                                    <span class="fw-bold">R$ 180,00</span>
+                                                </div>
+                                            </div>
+                                            <div class="list-group-item">
+                                                <div class="d-flex justify-content-between">
+                                                    <div>
+                                                        <h6 class="mb-1">Shell Express</h6>
+                                                        <small class="text-muted">05/06 - Diesel</small>
+                                                    </div>
+                                                    <span class="fw-bold">R$ 320,00</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Novo Abastecimento Content -->
+                    <div id="new-refuel-content" class="page-content">
+                        <div class="card">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0">Novo Abastecimento</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="refuel-form">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="refuel-date" class="form-label">Data</label>
+                                            <input type="date" class="form-control" id="refuel-date" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="fuel-type" class="form-label">Tipo de Combustível</label>
+                                            <select class="form-select" id="fuel-type" required>
+                                                <option value="">Selecione</option>
+                                                <option value="gasolina">Gasolina</option>
+                                                <option value="etanol">Etanol</option>
+                                                <option value="diesel">Diesel</option>
+                                                <option value="gnv">GNV</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="mileage" class="form-label">Quilometragem (km)</label>
+                                            <input type="number" class="form-control" id="mileage" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="liters" class="form-label">Litros</label>
+                                            <input type="number" step="0.01" class="form-control" id="liters" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="total-value" class="form-label">Valor Total (R$)</label>
+                                            <input type="number" step="0.01" class="form-control" id="total-value" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="price-per-liter" class="form-label">Preço por Litro (R$)</label>
+                                            <input type="number" step="0.01" class="form-control" id="price-per-liter" readonly>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="gas-station" class="form-label">Posto/Local</label>
+                                        <input type="text" class="form-control" id="gas-station">
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="observations" class="form-label">Observações</label>
+                                        <textarea class="form-control" id="observations" rows="3"></textarea>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between">
+                                        <button type="button" class="btn btn-outline-secondary" id="cancel-refuel">
+                                            Cancelar
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            Salvar Abastecimento
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Histórico Content -->
+                    <div id="history-content" class="page-content">
+                        <div class="card">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Histórico de Abastecimentos</h5>
+                                <div>
+                                    <button class="btn btn-outline-primary btn-sm me-2" id="export-csv">
+                                        <i class="bi bi-download"></i> Exportar CSV
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Filtros -->
+                                <div class="row mb-4">
+                                    <div class="col-md-3 mb-2">
+                                        <label for="filter-date-start" class="form-label">Data Início</label>
+                                        <input type="date" class="form-control" id="filter-date-start">
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <label for="filter-date-end" class="form-label">Data Fim</label>
+                                        <input type="date" class="form-control" id="filter-date-end">
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <label for="filter-fuel-type" class="form-label">Tipo de Combustível</label>
+                                        <select class="form-select" id="filter-fuel-type">
+                                            <option value="">Todos</option>
+                                            <option value="gasolina">Gasolina</option>
+                                            <option value="etanol">Etanol</option>
+                                            <option value="diesel">Diesel</option>
+                                            <option value="gnv">GNV</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-2 d-flex align-items-end">
+                                        <button class="btn btn-primary w-100" id="apply-filters">
+                                            <i class="bi bi-funnel"></i> Filtrar
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Tabela -->
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Data</th>
+                                                <th>Quilometragem</th>
+                                                <th>Litros</th>
+                                                <th>Valor Total</th>
+                                                <th>Preço/Litro</th>
+                                                <th>Consumo (km/l)</th>
+                                                <th>Posto</th>
+                                                <th>Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="refuel-history-table">
+                                            <tr>
+                                                <td>15/06/2023</td>
+                                                <td>45.200</td>
+                                                <td>20,00</td>
+                                                <td>R$ 250,00</td>
+                                                <td>R$ 12,50</td>
+                                                <td>12,5</td>
+                                                <td>Posto Central</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>10/06/2023</td>
+                                                <td>44.900</td>
+                                                <td>15,00</td>
+                                                <td>R$ 180,00</td>
+                                                <td>R$ 12,00</td>
+                                                <td>13,3</td>
+                                                <td>Auto Posto XYZ</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>05/06/2023</td>
+                                                <td>44.500</td>
+                                                <td>25,00</td>
+                                                <td>R$ 320,00</td>
+                                                <td>R$ 12,80</td>
+                                                <td>11,8</td>
+                                                <td>Shell Express</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- Paginação -->
+                                <nav aria-label="Navegação da página">
+                                    <ul class="pagination justify-content-center">
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" tabindex="-1">Anterior</a>
+                                        </li>
+                                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="#">Próximo</a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Estatísticas Content -->
+                    <div id="statistics-content" class="page-content">
+                        <div class="card">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0">Estatísticas Detalhadas</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Consumo Médio por Mês</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="chart-container">
+                                                    <canvas id="consumptionChart"></canvas>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Gastos Mensais</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="chart-container">
+                                                    <canvas id="monthlySpendingChart"></canvas>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Distribuição por Tipo de Combustível</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="chart-container">
+                                                    <canvas id="fuelTypeChart"></canvas>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Quilometragem Acumulada</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="chart-container">
+                                                    <canvas id="mileageChart"></canvas>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-4">
+                                    <div class="col-md-4">
+                                        <div class="card stats-card">
+                                            <div class="card-body">
+                                                <h6 class="text-muted">Melhor Consumo</h6>
+                                                <h4>15.2 km/L</h4>
+                                                <small class="text-muted">Posto Central - 05/05/2023</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card stats-card">
+                                            <div class="card-body">
+                                                <h6 class="text-muted">Pior Consumo</h6>
+                                                <h4>9.8 km/L</h4>
+                                                <small class="text-muted">Shell Express - 20/04/2023</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card stats-card">
+                                            <div class="card-body">
+                                                <h6 class="text-muted">Posto Mais Utilizado</h6>
+                                                <h4>Posto Central</h4>
+                                                <small class="text-muted">12 abastecimentos</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap 5 JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="js/script.js"></script>
+</body>
+</html>
