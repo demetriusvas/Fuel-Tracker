@@ -745,11 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // Atualiza o estado da paginação
-                if (direction === 'next' && !isLastPage) {
+                // Se não for a última página, guarda o cursor para buscar a PRÓXIMA página.
+                if (!isLastPage) {
                     const lastDocOfPage = docsForDisplay[docsForDisplay.length - 1];
-                    pageStartCursors.push(lastDocOfPage);
-                } else if (direction === 'prev') {
-                    pageStartCursors.pop();
+                    // O cursor para a página N é armazenado no índice N.
+                    pageStartCursors[historyCurrentPage] = lastDocOfPage;
                 }
                 updatePaginationUI(); // Atualiza os botões de paginação
             })
