@@ -63,6 +63,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Elementos da Página de Histórico ---
     const historyTableBody = document.getElementById('refuel-history-table');
 
+    // --- Modais de Ação ---
+    const editRefuelModalElement = document.getElementById('edit-refuel-modal');
+    const editRefuelModal = new bootstrap.Modal(editRefuelModalElement);
+    const editRefuelForm = document.getElementById('edit-refuel-form');
+    const editDocIdInput = document.getElementById('edit-doc-id');
+
+    const deleteConfirmModalElement = document.getElementById('delete-confirm-modal');
+    const deleteConfirmModal = new bootstrap.Modal(deleteConfirmModalElement);
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+
+    // --- Inputs do formulário de edição ---
+    const editLitersInput = document.getElementById('edit-liters');
+    const editTotalValueInput = document.getElementById('edit-total-value');
+    const editPricePerLiterInput = document.getElementById('edit-price-per-liter');
+
+
 
     // --- Funções Auxiliares ---
 
@@ -335,10 +351,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>N/A</td> <!-- O cálculo de consumo requer o registro anterior -->
                         <td>${data.gasStation || '-'}</td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary" data-id="${docId}" title="Editar">
+                            <button class="btn btn-sm btn-outline-primary edit-btn" data-id="${docId}" title="Editar">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-danger" data-id="${docId}" title="Excluir">
+                            <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${docId}" title="Excluir">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </td>
@@ -352,6 +368,105 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
 
+    /**
+     * Delegação de eventos para os botões de editar e excluir na tabela de histórico.
+     */
+    historyTableBody.addEventListener('click', (e) => {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        const docId = target.dataset.id;
+
+        if (target.classList.contains('delete-btn')) {
+            // Armazena o ID no botão de confirmação e abre o modal
+            confirmDeleteBtn.dataset.id = docId;
+            deleteConfirmModal.show();
+        }
+
+        if (target.classList.contains('edit-btn')) {
+            // Busca os dados do documento para preencher o formulário de edição
+            db.collection('refuels').doc(docId).get()
+                .then(doc => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        // Preenche o formulário no modal de edição
+                        editDocIdInput.value = docId;
+                        document.getElementById('edit-refuel-date').value = data.date;
+                        document.getElementById('edit-fuel-type').value = data.fuelType;
+                        document.getElementById('edit-mileage').value = data.mileage;
+                        editLitersInput.value = data.liters;
+                        editTotalValueInput.value = data.totalValue;
+                        editPricePerLiterInput.value = data.pricePerLiter;
+                        document.getElementById('edit-gas-station').value = data.gasStation;
+                        document.getElementById('edit-observations').value = data.observations;
+                        editRefuelModal.show();
+                    } else {
+                        showToast('Registro não encontrado.', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error("Erro ao buscar documento para edição: ", error);
+                    showToast('Erro ao carregar dados para edição.', 'danger');
+                });
+        }
+    });
+
+    /**
+     * Event listener para o botão de confirmação de exclusão.
+     */
+    confirmDeleteBtn.addEventListener('click', () => {
+        const docId = confirmDeleteBtn.dataset.id;
+        db.collection('refuels').doc(docId).delete()
+            .then(() => {
+                showToast('Registro excluído com sucesso!', 'success');
+                deleteConfirmModal.hide();
+                fetchAndDisplayHistory(); // Atualiza a tabela
+            })
+            .catch(error => {
+                console.error("Erro ao excluir documento: ", error);
+                showToast('Erro ao excluir o registro.', 'danger');
+                deleteConfirmModal.hide();
+            });
+    });
+
+    /**
+     * Event listener para o formulário de edição.
+     */
+    editRefuelForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const docId = editDocIdInput.value;
+
+        const updatedData = {
+            date: document.getElementById('edit-refuel-date').value,
+            fuelType: document.getElementById('edit-fuel-type').value,
+            mileage: parseInt(document.getElementById('edit-mileage').value, 10),
+            liters: parseFloat(editLitersInput.value),
+            totalValue: parseFloat(editTotalValueInput.value),
+            pricePerLiter: parseFloat(editPricePerLiterInput.value),
+            gasStation: document.getElementById('edit-gas-station').value.trim(),
+            observations: document.getElementById('edit-observations').value.trim(),
+        };
+
+        db.collection('refuels').doc(docId).update(updatedData)
+            .then(() => {
+                showToast('Registro atualizado com sucesso!', 'success');
+                editRefuelModal.hide();
+                fetchAndDisplayHistory(); // Atualiza a tabela
+            })
+            .catch(error => {
+                console.error("Erro ao atualizar documento: ", error);
+                showToast('Erro ao atualizar o registro.', 'danger');
+            });
+    });
+
+    // Adiciona cálculo automático de preço/litro também no formulário de edição
+    const calculateEditPricePerLiter = () => {
+        const total = parseFloat(editTotalValueInput.value);
+        const liters = parseFloat(editLitersInput.value);
+        editPricePerLiterInput.value = (total > 0 && liters > 0) ? (total / liters).toFixed(2) : '';
+    };
+    editTotalValueInput.addEventListener('input', calculateEditPricePerLiter);
+    editLitersInput.addEventListener('input', calculateEditPricePerLiter);
 
     // --- Lógica da Interface (UI) ---
 
