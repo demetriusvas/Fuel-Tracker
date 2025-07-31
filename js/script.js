@@ -327,43 +327,50 @@ document.addEventListener('DOMContentLoaded', () => {
             .orderBy('createdAt', 'asc') // Critério de desempate para datas iguais
             .get()
             .then(querySnapshot => {
-                historyTableBody.innerHTML = ''; // Limpa a tabela antes de adicionar os novos dados
- 
+                historyTableBody.innerHTML = ''; // Limpa a tabela
+
                 if (querySnapshot.empty) {
                     historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum abastecimento registrado ainda.</td></tr>';
                     return;
                 }
- 
-                // Converte os documentos para um array para facilitar o acesso ao item anterior
+
+                // 1. Converte os documentos para um array para facilitar o processamento
                 const refuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
- 
-                refuels.forEach((data, index) => {
-                    const docId = data.id;
-                    let consumption = 'N/A'; // Valor padrão
- 
-                    // Calcula o consumo a partir do segundo registro
-                    if (index > 0) {
-                        const previousRefuel = refuels[index - 1];
-                        const kmTraveled = data.mileage - previousRefuel.mileage;
- 
-                        // Garante que o cálculo é válido (km rodados e litros do abastecimento ANTERIOR > 0)
-                        if (kmTraveled > 0 && previousRefuel.liters > 0) {
-                            const calculatedConsumption = (kmTraveled / previousRefuel.liters).toFixed(2);
-                            consumption = `${calculatedConsumption.replace('.', ',')} km/l`;
+
+                // 2. Calcula o consumo para cada abastecimento (olhando para o próximo)
+                refuels.forEach((currentRefuel, index) => {
+                    // O consumo só pode ser calculado se houver um próximo abastecimento
+                    if (index < refuels.length - 1) {
+                        const nextRefuel = refuels[index + 1];
+                        const kmTraveled = nextRefuel.mileage - currentRefuel.mileage;
+
+                        if (kmTraveled > 0 && currentRefuel.liters > 0) {
+                            const calculatedConsumption = (kmTraveled / currentRefuel.liters).toFixed(2);
+                            // Adiciona a propriedade de consumo ao objeto do abastecimento ATUAL
+                            currentRefuel.consumption = `${calculatedConsumption.replace('.', ',')} km/l`;
+                        } else {
+                            currentRefuel.consumption = 'N/A';
                         }
+                    } else {
+                        // O último abastecimento (o mais recente) ainda não tem consumo calculado
+                        currentRefuel.consumption = 'N/A';
                     }
- 
+                });
+
+                // 3. Renderiza a tabela na ordem inversa (do mais novo para o mais antigo)
+                refuels.reverse().forEach(data => {
+                    const docId = data.id;
                     const row = document.createElement('tr');
                     // Formata a data para o padrão brasileiro, corrigindo problemas de fuso horário
                     const formattedDate = new Date(data.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
- 
+
                     row.innerHTML = `
                         <td>${formattedDate}</td>
                         <td>${data.mileage.toLocaleString('pt-BR')}</td>
                         <td>${data.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>R$ ${data.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>R$ ${data.pricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${consumption}</td>
+                        <td>${data.consumption}</td>
                         <td>${data.gasStation || '-'}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary edit-btn" data-id="${docId}" title="Editar">
@@ -374,8 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </button>
                         </td>
                     `;
-                    // Adiciona a linha no início da tabela para manter a ordem de "mais novo primeiro"
-                    historyTableBody.prepend(row);
+                    historyTableBody.appendChild(row); // Adiciona no final, pois o array já está invertido
                 });
             })
             .catch(error => {
