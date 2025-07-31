@@ -66,6 +66,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterDateEndInput = document.getElementById('filter-date-end');
     const filterFuelTypeInput = document.getElementById('filter-fuel-type');
     const applyFiltersBtn = document.getElementById('apply-filters');
+    const historyPaginationNav = document.getElementById('history-pagination-nav');
+    const paginationPrevBtn = document.getElementById('pagination-prev');
+    const paginationNextBtn = document.getElementById('pagination-next');
+    const paginationCurrentPageEl = document.getElementById('pagination-current-page');
+
+    // --- Estado da Paginação ---
+    let historyCurrentPage = 1;
+    const recordsPerPage = 20;
+    let lastVisibleDoc = null; // Guarda o último documento da página atual para buscar a próxima
+    let firstVisibleDocsStack = [null]; // Pilha para guardar o primeiro documento de cada página para voltar
+    let isLastPage = false;
 
 
     // --- Modais de Ação ---
@@ -598,10 +609,40 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
 
+    const updatePaginationUI = (noRecords) => {
+        if (noRecords) {
+            historyPaginationNav.classList.add('d-none');
+            return;
+        }
+        historyPaginationNav.classList.remove('d-none');
+        paginationCurrentPageEl.textContent = historyCurrentPage;
+
+        // Botão "Anterior"
+        if (historyCurrentPage <= 1) {
+            paginationPrevBtn.classList.add('disabled');
+        } else {
+            paginationPrevBtn.classList.remove('disabled');
+        }
+
+        // Botão "Próximo"
+        if (isLastPage) {
+            paginationNextBtn.classList.add('disabled');
+        } else {
+            paginationNextBtn.classList.remove('disabled');
+        }
+    };
+
     /**
      * Busca e exibe o histórico de abastecimentos do usuário logado.
      */
-    const fetchAndDisplayHistory = (filters = {}) => {
+    const fetchAndDisplayHistory = (options = {}) => {
+        const { direction = 'first', filters = {} } = options;
+
+        if (direction === 'first') {
+            historyCurrentPage = 1;
+            firstVisibleDocsStack = [null];
+            lastVisibleDoc = null;
+        }
         const user = auth.currentUser;
         if (!user) {
             historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Faça login para ver seu histórico.</td></tr>';
@@ -624,10 +665,21 @@ document.addEventListener('DOMContentLoaded', () => {
             query = query.where('fuelType', '==', filters.fuelType);
         }
 
-        // Adiciona a ordenação
-        query = query.orderBy('date', 'asc').orderBy('createdAt', 'asc');
+        // Adiciona a ordenação e os cursores de paginação
+        let finalQuery = query.orderBy('date', 'asc').orderBy('createdAt', 'asc');
 
-        query.get()
+        if (direction === 'next' && lastVisibleDoc) {
+            finalQuery = finalQuery.startAfter(lastVisibleDoc);
+        } else if (direction === 'prev') {
+            // Remove o cursor da página atual para obter o da página anterior
+            firstVisibleDocsStack.pop();
+            const prevPageStartDoc = firstVisibleDocsStack[firstVisibleDocsStack.length - 1];
+            if (prevPageStartDoc) {
+                finalQuery = finalQuery.startAfter(prevPageStartDoc);
+            }
+        }
+
+        finalQuery.limit(recordsPerPage).get()
             .then(querySnapshot => {
                 historyTableBody.innerHTML = ''; // Limpa a tabela
 
@@ -635,6 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum abastecimento registrado ainda.</td></tr>';
                     return;
                 }
+                updatePaginationUI(querySnapshot.empty && historyCurrentPage === 1);
 
                 // 1. Converte os documentos para um array para facilitar o processamento
                 const refuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -683,6 +736,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                     historyTableBody.appendChild(row); // Adiciona no final, pois o array já está invertido
                 });
+
+                // Atualiza o estado da paginação
+                if (!querySnapshot.empty) {
+                    if (direction === 'next') {
+                        historyCurrentPage++;
+                        firstVisibleDocsStack.push(querySnapshot.docs[0]);
+                    } else if (direction === 'prev') {
+                        historyCurrentPage--;
+                    }
+                    lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+                }
+
+                isLastPage = querySnapshot.docs.length < recordsPerPage;
+                updatePaginationUI();
             })
             .catch(error => {
                 console.error("Erro ao buscar histórico: ", error);
@@ -691,22 +758,44 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
 
-    /**
-     * Event listener para o botão de aplicar filtros.
-     */
-    applyFiltersBtn.addEventListener('click', () => {
+    const getFilters = () => {
         const filters = {
             startDate: filterDateStartInput.value,
             endDate: filterDateEndInput.value,
             fuelType: filterFuelTypeInput.value,
         };
-
         // Remove chaves vazias para não enviar filtros em branco
         Object.keys(filters).forEach(key => {
             if (!filters[key]) delete filters[key];
         });
+        return filters;
+    };
 
-        fetchAndDisplayHistory(filters);
+    /**
+     * Event listener para o botão de aplicar filtros.
+     */
+    applyFiltersBtn.addEventListener('click', () => {
+        fetchAndDisplayHistory({ direction: 'first', filters: getFilters() });
+    });
+
+    paginationNextBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!paginationNextBtn.classList.contains('disabled')) {
+            fetchAndDisplayHistory({
+                direction: 'next',
+                filters: getFilters()
+            });
+        }
+    });
+
+    paginationPrevBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!paginationPrevBtn.classList.contains('disabled')) {
+            fetchAndDisplayHistory({
+                direction: 'prev',
+                filters: getFilters()
+            });
+        }
     });
     /**
      * Delegação de eventos para os botões de editar e excluir na tabela de histórico.
@@ -760,7 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(() => {
                 showToast('Registro excluído com sucesso!', 'success');
                 deleteConfirmModal.hide();
-                fetchAndDisplayHistory(); // Atualiza a tabela
+                fetchAndDisplayHistory({ direction: 'first', filters: getFilters() }); // Recarrega a partir da primeira página
             })
             .catch(error => {
                 console.error("Erro ao excluir documento: ", error);
@@ -791,7 +880,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(() => {
                 showToast('Registro atualizado com sucesso!', 'success');
                 editRefuelModal.hide();
-                fetchAndDisplayHistory(); // Atualiza a tabela
+                fetchAndDisplayHistory({ direction: 'first', filters: getFilters() }); // Recarrega a partir da primeira página
             })
             .catch(error => {
                 console.error("Erro ao atualizar documento: ", error);
@@ -876,7 +965,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 filterDateStartInput.value = '';
                 filterDateEndInput.value = '';
                 filterFuelTypeInput.value = '';
-                fetchAndDisplayHistory(); // Busca sem filtros
+                fetchAndDisplayHistory({ direction: 'first' }); // Busca sem filtros
             }
             // Se a página clicada for o dashboard, atualiza os dados
             if (page === 'dashboard') {
