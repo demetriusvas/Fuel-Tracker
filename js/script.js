@@ -323,32 +323,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
         db.collection('refuels')
             .where('userId', '==', user.uid) // Filtra apenas os registros do usuário logado
-            .orderBy('date', 'desc') // Ordena pelos mais recentes primeiro
+            .orderBy('date', 'asc') // Ordena do mais antigo para o mais novo para calcular
+            .orderBy('createdAt', 'asc') // Critério de desempate para datas iguais
             .get()
             .then(querySnapshot => {
                 historyTableBody.innerHTML = ''; // Limpa a tabela antes de adicionar os novos dados
-
+ 
                 if (querySnapshot.empty) {
                     historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum abastecimento registrado ainda.</td></tr>';
                     return;
                 }
-
-                querySnapshot.forEach(doc => {
-                    const data = doc.data();
-                    const docId = doc.id;
-
-                    const row = historyTableBody.insertRow();
-
+ 
+                // Converte os documentos para um array para facilitar o acesso ao item anterior
+                const refuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+ 
+                refuels.forEach((data, index) => {
+                    const docId = data.id;
+                    let consumption = 'N/A'; // Valor padrão
+ 
+                    // Calcula o consumo a partir do segundo registro
+                    if (index > 0) {
+                        const previousRefuel = refuels[index - 1];
+                        const kmTraveled = data.mileage - previousRefuel.mileage;
+ 
+                        // Garante que o cálculo é válido (km rodados e litros > 0)
+                        if (kmTraveled > 0 && data.liters > 0) {
+                            const calculatedConsumption = (kmTraveled / data.liters).toFixed(2);
+                            consumption = `${calculatedConsumption.replace('.', ',')} km/l`;
+                        }
+                    }
+ 
+                    const row = document.createElement('tr');
                     // Formata a data para o padrão brasileiro, corrigindo problemas de fuso horário
                     const formattedDate = new Date(data.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-
+ 
                     row.innerHTML = `
                         <td>${formattedDate}</td>
                         <td>${data.mileage.toLocaleString('pt-BR')}</td>
                         <td>${data.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>R$ ${data.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>R$ ${data.pricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>N/A</td> <!-- O cálculo de consumo requer o registro anterior -->
+                        <td>${consumption}</td>
                         <td>${data.gasStation || '-'}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary edit-btn" data-id="${docId}" title="Editar">
@@ -359,6 +374,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             </button>
                         </td>
                     `;
+                    // Adiciona a linha no início da tabela para manter a ordem de "mais novo primeiro"
+                    historyTableBody.prepend(row);
                 });
             })
             .catch(error => {
