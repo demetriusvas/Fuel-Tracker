@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializa o Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
+    const db = firebase.firestore();
     const googleProvider = new firebase.auth.GoogleAuthProvider();
     // --- FIM: Configuração do Firebase ---
 
@@ -49,6 +50,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const forgotPasswordModal = new bootstrap.Modal(forgotPasswordModalElement);
     const forgotPasswordForm = document.getElementById('forgot-password-form');
     const resetEmailInput = document.getElementById('reset-email');
+
+    // --- Elementos do Formulário de Abastecimento ---
+    const refuelForm = document.getElementById('refuel-form');
+    const refuelDateInput = document.getElementById('refuel-date');
+    const fuelTypeInput = document.getElementById('fuel-type');
+    const mileageInput = document.getElementById('mileage');
+    const gasStationInput = document.getElementById('gas-station');
+    const observationsInput = document.getElementById('observations');
+    const cancelRefuelBtn = document.getElementById('cancel-refuel');
+
 
     // --- Funções Auxiliares ---
 
@@ -224,6 +235,59 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     });
 
+    /**
+     * Salvar Novo Abastecimento no Firestore
+     */
+    refuelForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const user = auth.currentUser;
+        if (!user) {
+            showToast('Você precisa estar logado para salvar um abastecimento.', 'danger');
+            return;
+        }
+
+        // Coleta e converte os dados do formulário
+        const refuelData = {
+            userId: user.uid, // Associa o registro ao usuário logado
+            date: refuelDateInput.value,
+            fuelType: fuelTypeInput.value,
+            mileage: parseInt(mileageInput.value, 10),
+            liters: parseFloat(litersInput.value),
+            totalValue: parseFloat(totalValueInput.value),
+            pricePerLiter: parseFloat(pricePerLiterInput.value),
+            gasStation: gasStationInput.value.trim(),
+            observations: observationsInput.value.trim(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp() // Melhor prática para timestamps
+        };
+
+        // Validação simples dos campos obrigatórios
+        if (!refuelData.date || !refuelData.fuelType || isNaN(refuelData.mileage) || isNaN(refuelData.liters) || isNaN(refuelData.totalValue)) {
+            showToast('Por favor, preencha todos os campos obrigatórios corretamente.', 'danger');
+            return;
+        }
+
+        // Adiciona o novo documento à coleção 'refuels'
+        db.collection('refuels').add(refuelData)
+            .then((docRef) => {
+                console.log("Documento salvo com ID: ", docRef.id);
+                showToast('Abastecimento salvo com sucesso!', 'success');
+                refuelForm.reset(); // Limpa o formulário
+                pricePerLiterInput.value = ''; // Limpa o campo readonly
+                // Navega para a página de histórico para ver o novo registro
+                document.querySelector('[data-page="history"]').click();
+            })
+            .catch((error) => {
+                console.error("Erro ao salvar documento: ", error);
+                showToast('Erro ao salvar o abastecimento. Tente novamente.', 'danger');
+            });
+    });
+
+    cancelRefuelBtn.addEventListener('click', () => {
+        refuelForm.reset();
+        pricePerLiterInput.value = '';
+        document.querySelector('[data-page="dashboard"]').click();
+    });
 
     // --- Lógica da Interface (UI) ---
 
