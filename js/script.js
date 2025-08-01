@@ -1,3 +1,40 @@
+    // --- Tema Claro/Escuro ---
+    const themeToggleBtn = document.createElement('button');
+    themeToggleBtn.id = 'theme-toggle-btn';
+    themeToggleBtn.className = 'btn btn-outline-secondary position-fixed';
+    themeToggleBtn.style.top = '1rem';
+    themeToggleBtn.style.right = '1rem';
+    themeToggleBtn.style.zIndex = '9999';
+    themeToggleBtn.title = 'Alternar tema claro/escuro';
+    themeToggleBtn.innerHTML = '<i class="bi bi-moon"></i>';
+    document.body.appendChild(themeToggleBtn);
+
+    // Função para aplicar o tema
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+            document.body.classList.remove('light-theme');
+            themeToggleBtn.innerHTML = '<i class="bi bi-sun"></i>';
+        } else {
+            document.body.classList.remove('dark-theme');
+            document.body.classList.add('light-theme');
+            themeToggleBtn.innerHTML = '<i class="bi bi-moon"></i>';
+        }
+    }
+
+    // Detecta tema salvo ou preferência do sistema
+    let currentTheme = localStorage.getItem('theme');
+    if (!currentTheme) {
+        currentTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    applyTheme(currentTheme);
+
+    // Alterna tema ao clicar no botão
+    themeToggleBtn.addEventListener('click', () => {
+        currentTheme = (currentTheme === 'dark') ? 'light' : 'dark';
+        localStorage.setItem('theme', currentTheme);
+        applyTheme(currentTheme);
+    });
 document.addEventListener('DOMContentLoaded', () => {
     // --- INÍCIO: Configuração do Firebase ---
     // IMPORTANTE: Substitua com as credenciais do seu projeto Firebase
