@@ -676,8 +676,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Busca um registro a mais para saber se existe uma próxima página e para calcular o consumo do último item
-        finalQuery.limit(recordsPerPage + 1).get()
+        // e, se não for a primeira página, busca mais um registro no início para cálculo correto do consumo do primeiro item
+        let limit = recordsPerPage + 1;
+        let extraStartDoc = null;
+        if (historyCurrentPage > 1 && pageStartCursors[historyCurrentPage - 2]) {
+            // Precisamos buscar o registro anterior ao primeiro da página atual
+            // Para isso, usamos o cursor da página anterior e limit+1
+            limit = recordsPerPage + 2;
+        }
 
+        finalQuery.limit(limit).get()
             .then(querySnapshot => {
                 historyTableBody.innerHTML = '';
 
@@ -687,12 +695,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                isLastPage = querySnapshot.docs.length <= recordsPerPage;
-                const docsForDisplay = querySnapshot.docs.slice(0, recordsPerPage);
-                const allFetchedRefuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Se não for a primeira página, removemos o primeiro registro (extra) do array de exibição, mas usamos para cálculo
+                let docs = querySnapshot.docs;
+                let allFetchedRefuels;
+                if (historyCurrentPage > 1 && docs.length > recordsPerPage + 1) {
+                    // docs[0] é o extra, docs[1..recordsPerPage+1] são os da página
+                    allFetchedRefuels = docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                } else {
+                    allFetchedRefuels = docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                }
 
-                // Inicializa todos como vazio (será preenchido depois)
-
+                // Inicializa todos como 'N/A'
                 allFetchedRefuels.forEach(refuel => {
                     refuel.consumption = 'N/A';
                 });
@@ -706,18 +719,27 @@ document.addEventListener('DOMContentLoaded', () => {
                             const calculatedConsumption = (kmTraveled / previousRefuelInTime.liters).toFixed(2);
                             previousRefuelInTime.consumption = `${calculatedConsumption.replace('.', ',')} km/l`;
                         }
-                        // Se não for possível calcular, permanece 'N/A'
                     }
                 });
 
                 // O registro mais recente de todo o histórico (primeira página, topo) deve ser 'N/A'.
-                // Só na primeira página, o primeiro registro exibido recebe 'N/A'.
                 if (historyCurrentPage === 1 && allFetchedRefuels.length > 0) {
                     allFetchedRefuels[0].consumption = 'N/A';
                 }
 
-                // Pega apenas os registros que serão renderizados (os 20 primeiros)
-                const refuelsToRender = allFetchedRefuels.slice(0, recordsPerPage);
+                // Seleciona os registros que serão renderizados na página
+                let refuelsToRender;
+                if (historyCurrentPage === 1) {
+                    refuelsToRender = allFetchedRefuels.slice(0, recordsPerPage);
+                } else if (allFetchedRefuels.length > recordsPerPage + 1) {
+                    // Remove o primeiro (extra) e pega os próximos recordsPerPage
+                    refuelsToRender = allFetchedRefuels.slice(1, recordsPerPage + 1);
+                } else if (allFetchedRefuels.length > recordsPerPage) {
+                    // Remove o primeiro (extra) e pega o restante
+                    refuelsToRender = allFetchedRefuels.slice(1);
+                } else {
+                    refuelsToRender = allFetchedRefuels;
+                }
 
                 // 3. Renderiza a tabela (já está na ordem correta)
                 refuelsToRender.forEach(data => {
