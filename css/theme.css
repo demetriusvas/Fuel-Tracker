@@ -1,0 +1,111 @@
+/* Variáveis do tema claro */
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --input-bg: #ffffff;
+    --card-bg: #ffffff;
+    --table-stripe: rgba(0, 0, 0, 0.05);
+    --link-color: #0d6efd;
+}
+
+/* Variáveis do tema escuro */
+[data-theme="dark"] {
+    --bg-primary: #212529;
+    --bg-secondary: #343a40;
+    --text-primary: #f8f9fa;
+    --text-secondary: #adb5bd;
+    --border-color: #495057;
+    --input-bg: #2b3035;
+    --card-bg: #2b3035;
+    --table-stripe: rgba(255, 255, 255, 0.05);
+    --link-color: #6ea8fe;
+}
+
+/* Aplicação dos estilos */
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Cards e elementos do dashboard */
+.card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+.card-header {
+    background-color: var(--bg-secondary);
+    border-bottom-color: var(--border-color);
+}
+
+/* Tabelas */
+.table {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: var(--table-stripe);
+}
+
+/* Inputs e formulários */
+.form-control {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-control:focus {
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+}
+
+/* Links e navegação */
+.nav-link {
+    color: var(--text-secondary);
+}
+
+.nav-link:hover, .nav-link:focus {
+    color: var(--link-color);
+}
+
+.nav-link.active {
+    color: var(--link-color) !important;
+}
+
+/* Botões outline */
+.btn-outline-primary {
+    border-color: var(--link-color);
+    color: var(--link-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--link-color);
+    color: var(--bg-primary);
+}
+
+/* Modais */
+.modal-content {
+    background-color: var(--bg-primary);
+    border-color: var(--border-color);
+}
+
+.modal-header, .modal-footer {
+    border-color: var(--border-color);
+}
+
+/* Lista de grupos */
+.list-group-item {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Texto secundário */
+.text-muted {
+    color: var(--text-secondary) !important;
+}

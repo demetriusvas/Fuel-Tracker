@@ -21,14 +21,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Função para aplicar o tema
     function applyTheme(theme) {
         if (theme === 'dark') {
-            document.body.classList.add('dark-theme');
-            document.body.classList.remove('light-theme');
+            document.documentElement.setAttribute('data-theme', 'dark');
             themeToggleBtn.innerHTML = getThemeIcon('dark');
         } else {
-            document.body.classList.remove('dark-theme');
-            document.body.classList.add('light-theme');
+            document.documentElement.setAttribute('data-theme', 'light');
             themeToggleBtn.innerHTML = getThemeIcon('light');
         }
+        // Força a reflow dos elementos para garantir que as mudanças sejam aplicadas
+        document.body.style.display = 'none';
+        document.body.offsetHeight; // Força o reflow
+        document.body.style.display = '';
     }
 
     // Detecta tema salvo ou preferência do sistema
