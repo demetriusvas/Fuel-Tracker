@@ -677,51 +677,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Busca um registro a mais para saber se existe uma próxima página e para calcular o consumo do último item
         finalQuery.limit(recordsPerPage + 1).get()
+
             .then(querySnapshot => {
-                historyTableBody.innerHTML = ''; // Limpa a tabela
+                historyTableBody.innerHTML = '';
 
                 if (querySnapshot.empty) {
                     historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum abastecimento registrado ainda.</td></tr>';
-                    updatePaginationUI(true); // Esconde a paginação se não houver registros
+                    updatePaginationUI(true);
                     return;
                 }
 
-                // Determina se esta é a última página
                 isLastPage = querySnapshot.docs.length <= recordsPerPage;
-
-                // Pega os documentos que serão de fato exibidos na página
                 const docsForDisplay = querySnapshot.docs.slice(0, recordsPerPage);
-
-                // 1. Converte os documentos para um array para facilitar o processamento
-                // Usa todos os documentos buscados (até 21) para permitir o cálculo do último item
                 const allFetchedRefuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // 2. Calcula o consumo para cada abastecimento (olhando para o próximo)
-                // O consumo de um abastecimento (ex: A) só pode ser calculado quando o próximo (B) é registrado.
-                // A fórmula é: (Quilometragem de B - Quilometragem de A) / Litros de A.
-                // Como os dados vêm ordenados do mais recente para o mais antigo, o cálculo é feito em pares.
-
-                // Primeiro, inicializamos todos os registros com consumo 'N/A'.
-                // O registro mais recente de todos (currentRefuel no index 0) sempre permanecerá 'N/A'.
+                // Inicializa todos como vazio (será preenchido depois)
                 allFetchedRefuels.forEach(refuel => {
-                    refuel.consumption = 'N/A';
+                    refuel.consumption = '';
                 });
 
-                // Agora, iteramos para calcular o consumo e atribuí-lo ao registro correto (o mais antigo do par).
+                // Calcula o consumo para cada abastecimento (olhando para o próximo)
                 allFetchedRefuels.forEach((currentRefuel, index) => {
-                    // 'currentRefuel' é o mais recente, 'previousRefuelInTime' é o mais antigo no par.
                     if (index < allFetchedRefuels.length - 1) {
                         const previousRefuelInTime = allFetchedRefuels[index + 1];
                         const kmTraveled = currentRefuel.mileage - previousRefuelInTime.mileage;
-
-                        // O consumo é referente ao tanque do abastecimento anterior (previousRefuelInTime).
                         if (kmTraveled > 0 && previousRefuelInTime.liters > 0) {
                             const calculatedConsumption = (kmTraveled / previousRefuelInTime.liters).toFixed(2);
-                            // Atribuímos o valor ao abastecimento que forneceu o combustível para o trecho.
                             previousRefuelInTime.consumption = `${calculatedConsumption.replace('.', ',')} km/l`;
+                        } else {
+                            previousRefuelInTime.consumption = 'N/A';
                         }
                     }
                 });
+
+                // O registro mais recente de todo o histórico (primeira página, topo) deve ser 'N/A'.
+                // Só na primeira página, o primeiro registro exibido recebe 'N/A'.
+                if (historyCurrentPage === 1 && allFetchedRefuels.length > 0) {
+                    allFetchedRefuels[0].consumption = 'N/A';
+                }
 
                 // Pega apenas os registros que serão renderizados (os 20 primeiros)
                 const refuelsToRender = allFetchedRefuels.slice(0, recordsPerPage);
