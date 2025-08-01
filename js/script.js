@@ -728,17 +728,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Seleciona os registros que serão renderizados na página
-                let refuelsToRender;
+
+                let refuelsToRender, docsForDisplay;
                 if (historyCurrentPage === 1) {
                     refuelsToRender = allFetchedRefuels.slice(0, recordsPerPage);
+                    docsForDisplay = querySnapshot.docs.slice(0, recordsPerPage);
                 } else if (allFetchedRefuels.length > recordsPerPage + 1) {
                     // Remove o primeiro (extra) e pega os próximos recordsPerPage
                     refuelsToRender = allFetchedRefuels.slice(1, recordsPerPage + 1);
+                    docsForDisplay = querySnapshot.docs.slice(1, recordsPerPage + 1);
                 } else if (allFetchedRefuels.length > recordsPerPage) {
                     // Remove o primeiro (extra) e pega o restante
                     refuelsToRender = allFetchedRefuels.slice(1);
+                    docsForDisplay = querySnapshot.docs.slice(1);
                 } else {
                     refuelsToRender = allFetchedRefuels;
+                    docsForDisplay = querySnapshot.docs;
                 }
 
                 // 3. Renderiza a tabela (já está na ordem correta)
