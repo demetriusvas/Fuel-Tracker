@@ -692,8 +692,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const allFetchedRefuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 // Inicializa todos como vazio (será preenchido depois)
+
                 allFetchedRefuels.forEach(refuel => {
-                    refuel.consumption = '';
+                    refuel.consumption = 'N/A';
                 });
 
                 // Calcula o consumo para cada abastecimento (olhando para o próximo)
@@ -704,9 +705,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (kmTraveled > 0 && previousRefuelInTime.liters > 0) {
                             const calculatedConsumption = (kmTraveled / previousRefuelInTime.liters).toFixed(2);
                             previousRefuelInTime.consumption = `${calculatedConsumption.replace('.', ',')} km/l`;
-                        } else {
-                            previousRefuelInTime.consumption = 'N/A';
                         }
+                        // Se não for possível calcular, permanece 'N/A'
                     }
                 });
 
