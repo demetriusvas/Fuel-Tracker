@@ -20,17 +20,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função para aplicar o tema
     function applyTheme(theme) {
-        if (theme === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            themeToggleBtn.innerHTML = getThemeIcon('dark');
-        } else {
-            document.documentElement.setAttribute('data-theme', 'light');
-            themeToggleBtn.innerHTML = getThemeIcon('light');
-        }
-        // Força a reflow dos elementos para garantir que as mudanças sejam aplicadas
-        document.body.style.display = 'none';
-        document.body.offsetHeight; // Força o reflow
-        document.body.style.display = '';
+        document.documentElement.setAttribute('data-theme', theme);
+        themeToggleBtn.innerHTML = getThemeIcon(theme);
+        localStorage.setItem('theme', theme);
+        
+        // Força o reflow para garantir que as mudanças sejam aplicadas
+        const root = document.documentElement;
+        root.style.display = 'none';
+        root.offsetHeight; // Força o reflow
+        root.style.display = '';
     }
 
     // Detecta tema salvo ou preferência do sistema
