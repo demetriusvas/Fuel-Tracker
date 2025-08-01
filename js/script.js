@@ -733,16 +733,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (historyCurrentPage === 1) {
                     refuelsToRender = allFetchedRefuels.slice(0, recordsPerPage);
                     docsForDisplay = querySnapshot.docs.slice(0, recordsPerPage);
-                } else if (allFetchedRefuels.length >= recordsPerPage + 1) {
-                    // Remove o primeiro (extra) e pega os próximos recordsPerPage
-                    refuelsToRender = allFetchedRefuels.slice(1, recordsPerPage + 1);
-                    docsForDisplay = querySnapshot.docs.slice(1, recordsPerPage + 1);
-                } else if (allFetchedRefuels.length === recordsPerPage) {
-                    // Última página: se trouxemos o extra, remove o primeiro e pega o restante
+                } else if (allFetchedRefuels.length > recordsPerPage) {
+                    // Sempre que houver extra, remove o primeiro (extra) e exibe o restante
                     refuelsToRender = allFetchedRefuels.slice(1);
                     docsForDisplay = querySnapshot.docs.slice(1);
                 } else {
-                    // Última página e não há extra (poucos registros)
                     refuelsToRender = allFetchedRefuels;
                     docsForDisplay = querySnapshot.docs;
                 }
