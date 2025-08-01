@@ -71,12 +71,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const paginationNextBtn = document.getElementById('pagination-next');
     const paginationCurrentPageEl = document.getElementById('pagination-current-page');
 
-    // --- Estado da Paginação ---
-    let historyCurrentPage = 1;
-    const recordsPerPage = 20;
-    let pageStartCursors = [null]; // Pilha para guardar o cursor inicial de cada página.
-    let isLastPage = false;
-
+    // --- Estado da Aplicação ---
+    const appState = {
+        historyPage: {
+            currentPage: 1,
+            recordsPerPage: 20,
+            pageStartCursors: [null], // Pilha para guardar o cursor inicial de cada página.
+            isLastPage: false,
+            activeFilters: {}
+        }
+    };
 
     // --- Modais de Ação ---
     const editRefuelModalElement = document.getElementById('edit-refuel-modal');
@@ -608,23 +612,23 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
 
-    const updatePaginationUI = (noRecords) => {
+    const updatePaginationUI = (noRecords = false) => {
         if (noRecords) {
             historyPaginationNav.classList.add('d-none');
             return;
         }
         historyPaginationNav.classList.remove('d-none');
-        paginationCurrentPageEl.textContent = historyCurrentPage;
+        paginationCurrentPageEl.textContent = appState.historyPage.currentPage;
 
         // Botão "Anterior"
-        if (historyCurrentPage <= 1) {
+        if (appState.historyPage.currentPage <= 1) {
             paginationPrevBtn.classList.add('disabled');
         } else {
             paginationPrevBtn.classList.remove('disabled');
         }
 
         // Botão "Próximo"
-        if (isLastPage) {
+        if (appState.historyPage.isLastPage) {
             paginationNextBtn.classList.add('disabled');
         } else {
             paginationNextBtn.classList.remove('disabled');
@@ -634,17 +638,19 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Busca e exibe o histórico de abastecimentos do usuário logado.
      */
-    const fetchAndDisplayHistory = (options = {}) => {
-        const { direction = 'first', filters = {} } = options;
+    const fetchAndDisplayHistory = (isNewQuery = false) => {
+        const { historyPage } = appState;
 
-        if (direction === 'first') {
-            historyCurrentPage = 1;
-            pageStartCursors = [null];
-        } else if (direction === 'next') {
-            historyCurrentPage++;
-        } else if (direction === 'prev') {
-            historyCurrentPage--;
+        if (isNewQuery) {
+            historyPage.currentPage = 1;
+            historyPage.pageStartCursors = [null];
+            historyPage.isLastPage = false;
+            // Obter filtros mais recentes da UI
+            historyPage.activeFilters = getFilters();
         }
+
+        const { currentPage, recordsPerPage, pageStartCursors, activeFilters } = historyPage;
+
         const user = auth.currentUser;
         if (!user) {
             historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Faça login para ver seu histórico.</td></tr>';
@@ -656,54 +662,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let query = db.collection('refuels').where('userId', '==', user.uid);
 
-        // Aplica os filtros à consulta
-        if (filters.startDate) {
-            query = query.where('date', '>=', filters.startDate);
+        // Aplica os filtros salvos à consulta
+        if (activeFilters.startDate) {
+            query = query.where('date', '>=', activeFilters.startDate);
         }
-        if (filters.endDate) {
-            query = query.where('date', '<=', filters.endDate);
+        if (activeFilters.endDate) {
+            query = query.where('date', '<=', activeFilters.endDate);
         }
-        if (filters.fuelType) {
-            query = query.where('fuelType', '==', filters.fuelType);
+        if (activeFilters.fuelType) {
+            query = query.where('fuelType', '==', activeFilters.fuelType);
         }
 
         // Adiciona a ordenação e os cursores de paginação
         let finalQuery = query.orderBy('date', 'desc').orderBy('createdAt', 'desc');
 
-        const cursor = pageStartCursors[historyCurrentPage - 1];
+        const cursor = pageStartCursors[currentPage - 1];
         if (cursor) {
             finalQuery = finalQuery.startAfter(cursor);
         }
 
-        // Busca um registro a mais para saber se existe uma próxima página e para calcular o consumo do último item
-        // e, se não for a primeira página, busca mais um registro no início para cálculo correto do consumo do primeiro item
-        let limit = recordsPerPage + 1;
-        let extraStartDoc = null;
-        if (historyCurrentPage > 1 && pageStartCursors[historyCurrentPage - 2]) {
-            // Precisamos buscar o registro anterior ao primeiro da página atual
-            // Para isso, usamos o cursor da página anterior e limit+1
-            limit = recordsPerPage + 2;
-        }
-
-        finalQuery.limit(limit).get()
+        // Busca um registro a mais para saber se existe uma próxima página
+        finalQuery.limit(recordsPerPage + 1).get()
             .then(querySnapshot => {
                 historyTableBody.innerHTML = '';
 
                 if (querySnapshot.empty) {
                     historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum abastecimento registrado ainda.</td></tr>';
                     updatePaginationUI(true);
+                    historyPage.isLastPage = true;
                     return;
                 }
-
-                // Se não for a primeira página, removemos o primeiro registro (extra) do array de exibição, mas usamos para cálculo
-                let docs = querySnapshot.docs;
-                let allFetchedRefuels;
-                if (historyCurrentPage > 1 && docs.length > recordsPerPage + 1) {
-                    // docs[0] é o extra, docs[1..recordsPerPage+1] são os da página
-                    allFetchedRefuels = docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                } else {
+                else {
                     allFetchedRefuels = docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 }
+                
 
                 // Inicializa todos como 'N/A'
                 allFetchedRefuels.forEach(refuel => {
