@@ -7,7 +7,15 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggleBtn.style.right = '1rem';
     themeToggleBtn.style.zIndex = '9999';
     themeToggleBtn.title = 'Alternar tema claro/escuro';
-    themeToggleBtn.innerHTML = '<i class="bi bi-moon"></i>';
+    // Usa ícone Unicode se Bootstrap Icons não estiver disponível
+    function getThemeIcon(theme) {
+        if (window.bootstrap && document.createElement('i').classList) {
+            return theme === 'dark' ? '<i class="bi bi-sun"></i>' : '<i class="bi bi-moon"></i>';
+        } else {
+            return theme === 'dark' ? '☀️' : '🌙';
+        }
+    }
+    themeToggleBtn.innerHTML = getThemeIcon('light');
     document.body.appendChild(themeToggleBtn);
 
     // Função para aplicar o tema
@@ -15,11 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (theme === 'dark') {
             document.body.classList.add('dark-theme');
             document.body.classList.remove('light-theme');
-            themeToggleBtn.innerHTML = '<i class="bi bi-sun"></i>';
+            themeToggleBtn.innerHTML = getThemeIcon('dark');
         } else {
             document.body.classList.remove('dark-theme');
             document.body.classList.add('light-theme');
-            themeToggleBtn.innerHTML = '<i class="bi bi-moon"></i>';
+            themeToggleBtn.innerHTML = getThemeIcon('light');
         }
     }
 
