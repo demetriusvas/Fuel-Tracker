@@ -72,15 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const paginationCurrentPageEl = document.getElementById('pagination-current-page');
 
     // --- Estado da Aplicação ---
-    const appState = {
-        historyPage: {
-            currentPage: 1,
-            recordsPerPage: 20,
-            pageStartCursors: [null], // Pilha para guardar o cursor inicial de cada página.
-            isLastPage: false,
-            activeFilters: {}
-        }
-    };
+    // Não é mais necessário estado de paginação para o histórico
 
     // --- Modais de Ação ---
     const editRefuelModalElement = document.getElementById('edit-refuel-modal');
@@ -612,45 +604,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
 
-    const updatePaginationUI = (noRecords = false) => {
-        if (noRecords) {
-            historyPaginationNav.classList.add('d-none');
-            return;
-        }
-        historyPaginationNav.classList.remove('d-none');
-        paginationCurrentPageEl.textContent = appState.historyPage.currentPage;
-
-        // Botão "Anterior"
-        if (appState.historyPage.currentPage <= 1) {
-            paginationPrevBtn.classList.add('disabled');
-        } else {
-            paginationPrevBtn.classList.remove('disabled');
-        }
-
-        // Botão "Próximo"
-        if (appState.historyPage.isLastPage) {
-            paginationNextBtn.classList.add('disabled');
-        } else {
-            paginationNextBtn.classList.remove('disabled');
-        }
-    };
+    // Não é mais necessário atualizar UI de paginação
 
     /**
-     * Busca e exibe o histórico de abastecimentos do usuário logado.
+     * Busca e exibe os 20 registros mais recentes do histórico de abastecimentos do usuário logado.
      */
-    const fetchAndDisplayHistory = (isNewQuery = false) => {
-        const { historyPage } = appState;
-
-        if (isNewQuery) {
-            historyPage.currentPage = 1;
-            historyPage.pageStartCursors = [null];
-            historyPage.isLastPage = false;
-            // Obter filtros mais recentes da UI
-            historyPage.activeFilters = getFilters();
-        }
-
-        const { currentPage, recordsPerPage, pageStartCursors, activeFilters } = historyPage;
-
+    const fetchAndDisplayHistory = () => {
         const user = auth.currentUser;
         if (!user) {
             historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Faça login para ver seu histórico.</td></tr>';
@@ -662,40 +621,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let query = db.collection('refuels').where('userId', '==', user.uid);
 
-        // Aplica os filtros salvos à consulta
-        if (activeFilters.startDate) {
-            query = query.where('date', '>=', activeFilters.startDate);
+        // Aplica filtros, se desejar (mantendo compatibilidade com filtros existentes)
+        const filters = getFilters();
+        if (filters.startDate) {
+            query = query.where('date', '>=', filters.startDate);
         }
-        if (activeFilters.endDate) {
-            query = query.where('date', '<=', activeFilters.endDate);
+        if (filters.endDate) {
+            query = query.where('date', '<=', filters.endDate);
         }
-        if (activeFilters.fuelType) {
-            query = query.where('fuelType', '==', activeFilters.fuelType);
-        }
-
-        // Adiciona a ordenação e os cursores de paginação
-        let finalQuery = query.orderBy('date', 'desc').orderBy('createdAt', 'desc');
-
-        const cursor = pageStartCursors[currentPage - 1];
-        if (cursor) {
-            finalQuery = finalQuery.startAfter(cursor);
+        if (filters.fuelType) {
+            query = query.where('fuelType', '==', filters.fuelType);
         }
 
-        // Busca um registro a mais para saber se existe uma próxima página
-        finalQuery.limit(recordsPerPage + 1).get()
+        // Ordena e limita aos 20 mais recentes
+        query.orderBy('date', 'desc').orderBy('createdAt', 'desc').limit(20).get()
             .then(querySnapshot => {
                 historyTableBody.innerHTML = '';
 
                 if (querySnapshot.empty) {
                     historyTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum abastecimento registrado ainda.</td></tr>';
-                    updatePaginationUI(true);
-                    historyPage.isLastPage = true;
                     return;
                 }
-                else {
-                    allFetchedRefuels = docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                }
-                
+
+                const allFetchedRefuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 // Inicializa todos como 'N/A'
                 allFetchedRefuels.forEach(refuel => {
@@ -714,28 +662,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                // O registro mais recente de todo o histórico (primeira página, topo) deve ser 'N/A'.
-                if (historyCurrentPage === 1 && allFetchedRefuels.length > 0) {
+                // O registro mais recente (primeiro da lista) deve ser 'N/A'.
+                if (allFetchedRefuels.length > 0) {
                     allFetchedRefuels[0].consumption = 'N/A';
                 }
 
-                // Seleciona os registros que serão renderizados na página
-
-                let refuelsToRender, docsForDisplay;
-                if (historyCurrentPage === 1) {
-                    refuelsToRender = allFetchedRefuels.slice(0, recordsPerPage);
-                    docsForDisplay = querySnapshot.docs.slice(0, recordsPerPage);
-                } else if (allFetchedRefuels.length > recordsPerPage) {
-                    // Sempre que houver extra, remove o primeiro (extra) e exibe o restante
-                    refuelsToRender = allFetchedRefuels.slice(1);
-                    docsForDisplay = querySnapshot.docs.slice(1);
-                } else {
-                    refuelsToRender = allFetchedRefuels;
-                    docsForDisplay = querySnapshot.docs;
-                }
-
-                // 3. Renderiza a tabela (já está na ordem correta)
-                refuelsToRender.forEach(data => {
+                // Renderiza a tabela
+                allFetchedRefuels.forEach(data => {
                     const docId = data.id;
                     const row = document.createElement('tr');
                     // Formata a data para o padrão brasileiro, corrigindo problemas de fuso horário
@@ -760,15 +693,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                     historyTableBody.appendChild(row);
                 });
-
-                // Atualiza o estado da paginação
-                // Se não for a última página, guarda o cursor para buscar a PRÓXIMA página.
-                if (!isLastPage) {
-                    const lastDocOfPage = docsForDisplay[docsForDisplay.length - 1];
-                    // O cursor para a página N é armazenado no índice N.
-                    pageStartCursors[historyCurrentPage] = lastDocOfPage;
-                }
-                updatePaginationUI(); // Atualiza os botões de paginação
             })
             .catch(error => {
                 console.error("Erro ao buscar histórico: ", error);
@@ -794,28 +718,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * Event listener para o botão de aplicar filtros.
      */
     applyFiltersBtn.addEventListener('click', () => {
-        fetchAndDisplayHistory({ direction: 'first', filters: getFilters() });
+        fetchAndDisplayHistory();
     });
-
-    paginationNextBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (!paginationNextBtn.classList.contains('disabled')) {
-            fetchAndDisplayHistory({
-                direction: 'next',
-                filters: getFilters()
-            });
-        }
-    });
-
-    paginationPrevBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (!paginationPrevBtn.classList.contains('disabled')) {
-            fetchAndDisplayHistory({
-                direction: 'prev',
-                filters: getFilters()
-            });
-        }
-    });
+    // Removido: listeners de paginação, pois não há mais paginação
     /**
      * Delegação de eventos para os botões de editar e excluir na tabela de histórico.
      */
@@ -984,7 +889,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 filterDateStartInput.value = '';
                 filterDateEndInput.value = '';
                 filterFuelTypeInput.value = '';
-                fetchAndDisplayHistory({ direction: 'first' }); // Busca sem filtros
+                fetchAndDisplayHistory(); // Busca sem filtros
             }
             // Se a página clicada for o dashboard, atualiza os dados
             if (page === 'dashboard') {
