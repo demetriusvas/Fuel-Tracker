@@ -27,8 +27,8 @@
 }
 
 /* Aplicação dos estilos */
-body, .card, .modal-content, .form-control, .btn, .list-group-item, .table {
-    transition: all 0.3s ease;
+*, *::before, *::after {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 body {
@@ -37,14 +37,29 @@ body {
 }
 
 /* Cards e elementos do dashboard */
-.card {
+.card, .list-group {
     background-color: var(--card-bg);
     border-color: var(--border-color);
+    color: var(--text-primary);
 }
 
-.card-header {
+.card-header, .modal-header {
     background-color: var(--bg-secondary);
     border-bottom-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Background e cores base */
+.bg-light {
+    background-color: var(--bg-secondary) !important;
+}
+
+.bg-dark {
+    background-color: var(--bg-primary) !important;
+}
+
+.text-dark {
+    color: var(--text-primary) !important;
 }
 
 /* Tabelas */
@@ -53,19 +68,51 @@ body {
     border-color: var(--border-color);
 }
 
+.table thead th {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.table tbody td {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
 .table-striped tbody tr:nth-of-type(odd) {
     background-color: var(--table-stripe);
 }
 
+.table-hover tbody tr:hover {
+    background-color: var(--bg-secondary);
+}
+
 /* Inputs e formulários */
-.form-control {
+.form-control, .form-select, .input-group-text {
     background-color: var(--input-bg);
     border-color: var(--border-color);
     color: var(--text-primary);
 }
 
-.form-control:focus {
+.form-control:focus, .form-select:focus {
     background-color: var(--input-bg);
+    color: var(--text-primary);
+    border-color: var(--link-color);
+}
+
+.form-control::placeholder {
+    color: var(--text-secondary);
+}
+
+/* Input groups e addons */
+.input-group-text {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* Form labels e texto */
+.form-label, .form-text {
     color: var(--text-primary);
 }
 
@@ -80,9 +127,14 @@ body {
 
 .nav-link.active {
     color: var(--link-color) !important;
+    background-color: var(--bg-secondary);
 }
 
-/* Botões outline */
+/* Botões */
+.btn {
+    border-color: var(--border-color);
+}
+
 .btn-outline-primary {
     border-color: var(--link-color);
     color: var(--link-color);
@@ -93,6 +145,26 @@ body {
     color: var(--bg-primary);
 }
 
+.btn-outline-secondary {
+    border-color: var(--btn-outline);
+    color: var(--btn-outline);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--btn-outline);
+    color: var(--bg-primary);
+}
+
+/* Links padrão */
+a {
+    color: var(--link-color);
+}
+
+a:hover {
+    color: var(--link-color);
+    opacity: 0.8;
+}
+
 /* Modais */
 .modal-content {
     background-color: var(--bg-primary);
@@ -101,6 +173,12 @@ body {
 
 .modal-header, .modal-footer {
     border-color: var(--border-color);
+    background-color: var(--bg-secondary);
+}
+
+.modal-body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 /* Lista de grupos */
@@ -110,7 +188,36 @@ body {
     color: var(--text-primary);
 }
 
-/* Texto secundário */
+.list-group-item:hover {
+    background-color: var(--bg-secondary);
+}
+
+/* Toast notifications */
+.toast {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+.toast-header {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-bottom-color: var(--border-color);
+}
+
+/* Texto e cores utilitárias */
 .text-muted {
     color: var(--text-secondary) !important;
+}
+
+.border {
+    border-color: var(--border-color) !important;
+}
+
+/* Chart.js customização */
+canvas {
+    filter: var(--chart-filter, none);
+}
+
+:root[data-theme="dark"] canvas {
+    --chart-filter: invert(1) hue-rotate(180deg);
 }
