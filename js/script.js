@@ -697,6 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const allFetchedRefuels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 // 2. Calcula o consumo para cada abastecimento (olhando para o próximo)
+                // O consumo de um abastecimento só pode ser calculado quando
                 allFetchedRefuels.forEach((currentRefuel, index) => {
                     // Define 'N/A' como padrão. O cálculo abaixo irá sobrescrever se for bem-sucedido.
                     currentRefuel.consumption = 'N/A';
