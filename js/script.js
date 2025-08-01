@@ -1,3 +1,4 @@
+document.addEventListener('DOMContentLoaded', () => {
     // --- Tema Claro/Escuro ---
     const themeToggleBtn = document.createElement('button');
     themeToggleBtn.id = 'theme-toggle-btn';
@@ -35,7 +36,6 @@
         localStorage.setItem('theme', currentTheme);
         applyTheme(currentTheme);
     });
-document.addEventListener('DOMContentLoaded', () => {
     // --- INÍCIO: Configuração do Firebase ---
     // IMPORTANTE: Substitua com as credenciais do seu projeto Firebase
     const firebaseConfig = {
