@@ -151,9 +151,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const refuelDateInput = document.getElementById('refuel-date');
     const fuelTypeInput = document.getElementById('fuel-type');
     const mileageInput = document.getElementById('mileage');
+    const litersInput = document.getElementById('liters');
+    const totalValueInput = document.getElementById('total-value');
+    const pricePerLiterInput = document.getElementById('price-per-liter');
     const gasStationInput = document.getElementById('gas-station');
     const observationsInput = document.getElementById('observations');
     const cancelRefuelBtn = document.getElementById('cancel-refuel');
+
+    // Função para calcular os litros
+    const calculateLiters = () => {
+        const totalValue = parseFloat(totalValueInput.value) || 0;
+        const pricePerLiter = parseFloat(pricePerLiterInput.value) || 0;
+        
+        if (totalValue > 0 && pricePerLiter > 0) {
+            const liters = totalValue / pricePerLiter;
+            litersInput.value = liters.toFixed(2);
+        } else {
+            litersInput.value = '';
+        }
+    };
+
+    // Adiciona listeners para calcular os litros automaticamente
+    totalValueInput.addEventListener('input', calculateLiters);
+    pricePerLiterInput.addEventListener('input', calculateLiters);
+
+    // Desabilita o campo de litros já que será calculado automaticamente
+    litersInput.readOnly = true;
 
     // --- Elementos da Página de Histórico ---
     const historyTableBody = document.getElementById('refuel-history-table');
@@ -995,25 +1018,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    /**
-     * Cálculo automático do preço por litro
-     */
-    const totalValueInput = document.getElementById('total-value');
-    const litersInput = document.getElementById('liters');
-    const pricePerLiterInput = document.getElementById('price-per-liter');
-
-    const calculatePricePerLiter = () => {
-        const total = parseFloat(totalValueInput.value);
-        const liters = parseFloat(litersInput.value);
-
-        if (total > 0 && liters > 0) {
-            const pricePerLiter = total / liters;
-            pricePerLiterInput.value = pricePerLiter.toFixed(2);
-        } else {
-            pricePerLiterInput.value = '';
-        }
-    };
-
-    totalValueInput.addEventListener('input', calculatePricePerLiter);
-    litersInput.addEventListener('input', calculatePricePerLiter);
 });
