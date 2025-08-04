@@ -177,6 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Desabilita o campo de litros já que será calculado automaticamente
     litersInput.readOnly = true;
+    // Garante que o campo de preço por litro seja editável
+    pricePerLiterInput.readOnly = false;
 
     // --- Elementos da Página de Histórico ---
     const historyTableBody = document.getElementById('refuel-history-table');
