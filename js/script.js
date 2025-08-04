@@ -1,4 +1,39 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Objeto para gerenciar as instâncias dos gráficos
+    const chartInstances = {
+        spending: null,
+        consumption: null,
+        monthlySpending: null,
+        fuelType: null,
+        mileage: null,
+        updateAll: function(theme) {
+            const isDark = theme === 'dark';
+            const chartColors = {
+                text: isDark ? '#f8f9fa' : '#212529',
+                grid: isDark ? '#495057' : '#dee2e6',
+                background: isDark ? '#2c3136' : '#ffffff'
+            };
+
+            Object.values(this).forEach(chart => {
+                if (chart && typeof chart === 'object' && chart.update) {
+                    // Atualiza cores do grid e textos
+                    if (chart.options && chart.options.scales) {
+                        chart.options.scales.x.grid.color = chartColors.grid;
+                        chart.options.scales.y.grid.color = chartColors.grid;
+                        chart.options.scales.x.ticks.color = chartColors.text;
+                        chart.options.scales.y.ticks.color = chartColors.text;
+                    }
+                    
+                    // Atualiza a cor de fundo
+                    if (chart.canvas && chart.canvas.parentNode) {
+                        chart.canvas.parentNode.style.backgroundColor = chartColors.background;
+                    }
+                    
+                    chart.update();
+                }
+            });
+        }
+    };
     // --- Tema Claro/Escuro ---
     const themeToggleBtn = document.createElement('button');
     themeToggleBtn.id = 'theme-toggle-btn';
@@ -23,6 +58,21 @@ document.addEventListener('DOMContentLoaded', () => {
         document.documentElement.setAttribute('data-theme', theme);
         themeToggleBtn.innerHTML = getThemeIcon(theme);
         localStorage.setItem('theme', theme);
+        
+        const isDark = theme === 'dark';
+        const chartColors = {
+            text: isDark ? '#f8f9fa' : '#212529',
+            grid: isDark ? '#495057' : '#dee2e6',
+            background: isDark ? '#2c3136' : '#ffffff'
+        };
+
+        // Aplica as configurações globais do Chart.js
+        Chart.defaults.color = chartColors.text;
+        Chart.defaults.borderColor = chartColors.grid;
+        Chart.defaults.backgroundColor = chartColors.background;
+
+        // Atualiza os gráficos usando o objeto chartInstances
+        chartInstances.updateAll(theme);
         
         // Força o reflow para garantir que as mudanças sejam aplicadas
         const root = document.documentElement;
@@ -141,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentMileageEl = document.getElementById('current-mileage');
     const recentRefuelsList = document.getElementById('recent-refuels');
     const spendingChartCanvas = document.getElementById('spendingChart');
-    let spendingChartInstance = null; // Variável para guardar a instância do gráfico
 
     // --- Elementos da Página de Estatísticas ---
     const statsContent = document.getElementById('statistics-content');
@@ -150,7 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const monthlySpendingChartCanvas = document.getElementById('monthlySpendingChart');
     const fuelTypeChartCanvas = document.getElementById('fuelTypeChart');
     const mileageChartCanvas = document.getElementById('mileageChart');
-    let consumptionChartInstance, monthlySpendingChartInstance, fuelTypeChartInstance, mileageChartInstance;
 
     const bestConsumptionEl = document.getElementById('best-consumption');
     const bestConsumptionDetailsEl = document.getElementById('best-consumption-details');
@@ -486,12 +534,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const chartData = Object.values(spendingByMonth);
 
                 // Atualiza ou cria o gráfico
-                if (spendingChartInstance) {
-                    spendingChartInstance.data.labels = chartLabels;
-                    spendingChartInstance.data.datasets[0].data = chartData;
-                    spendingChartInstance.update();
+                if (chartInstances.spending) {
+                    chartInstances.spending.data.labels = chartLabels;
+                    chartInstances.spending.data.datasets[0].data = chartData;
+                    chartInstances.spending.update();
                 } else {
-                    spendingChartInstance = new Chart(spendingChartCanvas, {
+                    chartInstances.spending = new Chart(spendingChartCanvas, {
                         type: 'bar',
                         data: {
                             labels: chartLabels,
@@ -517,10 +565,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!user) return;
 
         // Limpa gráficos antigos para evitar sobreposição
-        if (consumptionChartInstance) consumptionChartInstance.destroy();
-        if (monthlySpendingChartInstance) monthlySpendingChartInstance.destroy();
-        if (fuelTypeChartInstance) fuelTypeChartInstance.destroy();
-        if (mileageChartInstance) mileageChartInstance.destroy();
+        if (chartInstances.consumption) chartInstances.consumption.destroy();
+        if (chartInstances.monthlySpending) chartInstances.monthlySpending.destroy();
+        if (chartInstances.fuelType) chartInstances.fuelType.destroy();
+        if (chartInstances.mileage) chartInstances.mileage.destroy();
 
         // Mostra um estado de carregamento
         bestConsumptionEl.textContent = '...';
@@ -598,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     acc[key] = values.reduce((a, b) => a + b, 0) / values.length;
                     return acc;
                 }, {});
-                consumptionChartInstance = renderChart(consumptionChartCanvas, {
+                chartInstances.consumption = renderChart(consumptionChartCanvas, {
                     type: 'line',
                     data: {
                         labels: Object.keys(avgConsumptionByMonth).map(k => new Date(k + '-02').toLocaleString('pt-BR', { month: 'short', year: '2-digit' })),
@@ -613,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     acc[monthKey] = (acc[monthKey] || 0) + r.totalValue;
                     return acc;
                 }, {});
-                monthlySpendingChartInstance = renderChart(monthlySpendingChartCanvas, {
+                chartInstances.monthlySpending = renderChart(monthlySpendingChartCanvas, {
                     type: 'bar',
                     data: {
                         labels: Object.keys(spendingByMonth).map(k => new Date(k + '-02').toLocaleString('pt-BR', { month: 'short', year: '2-digit' })),
@@ -628,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     acc[type] = (acc[type] || 0) + r.totalValue;
                     return acc;
                 }, {});
-                fuelTypeChartInstance = renderChart(fuelTypeChartCanvas, {
+                chartInstances.fuelType = renderChart(fuelTypeChartCanvas, {
                     type: 'pie',
                     data: {
                         labels: Object.keys(spendingByFuelType),
@@ -638,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // Gráfico 4: Quilometragem Acumulada
-                mileageChartInstance = renderChart(mileageChartCanvas, {
+                chartInstances.mileage = renderChart(mileageChartCanvas, {
                     type: 'line',
                     data: {
                         labels: refuels.map(r => new Date(r.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })),
